@@ -695,6 +695,8 @@ async function testAIConnection() {
 
 async function fetchAIQuotes() {
   if (aiQuoteFetching) return;
+  // Don't burn credits when nothing is playing
+  if (!currentNowPlayingTitle && aiQuoteQueue.length > 0) return;
   aiQuoteFetching = true;
   try {
     const safeTracks  = (typeof tracks !== 'undefined' && Array.isArray(tracks)) ? tracks : [];
@@ -799,6 +801,12 @@ Good example: ["Nevermind outsold Michael Jackson the week it dropped. Kurt was 
     // Surface auth/config errors clearly
     if (data.error) {
       console.error('🔴 AI quotes worker error:', data.error);
+      // If it's a billing/credit error, stop retrying — no point hammering a depleted account
+      if (typeof data.error === 'string' && (data.error.includes('credit') || data.error.includes('billing') || data.error.includes('balance'))) {
+        console.error('💳 Anthropic credit depleted — AI ticker paused. Top up at console.anthropic.com');
+        aiQuoteFetching = false;
+        return; // Don't set up retry — fallbacks will run until credits are topped up
+      }
       aiQuoteFetching = false; return;
     }
     const text = data.content?.[0]?.text || '';
@@ -1161,7 +1169,7 @@ testAIConnection();
 // Delay first AI fetch until Spotify now playing has had time to populate
 setTimeout(() => {
   fetchAIQuotes();
-  setInterval(fetchAIQuotes, 60 * 1000);
+  setInterval(fetchAIQuotes, 5 * 60 * 1000); // backstop — low-queue trigger does the real work
 }, 8000);
 nextQuote();
 
