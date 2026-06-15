@@ -1610,7 +1610,7 @@ function updateAlbumArt(url) {
 }
 
 fetchNowPlaying();
-setInterval(fetchNowPlaying, 15000);
+setInterval(fetchNowPlaying, 8000);
 
 // ── KEEP ALIVE — prevent browser throttling when tab is in background ──
 
@@ -1653,7 +1653,13 @@ document.addEventListener('visibilitychange', async () => {
   if (nextQueueAt_local) {
     const remaining = nextQueueAt_local - Date.now();
     if (remaining > 0) {
-      showCountdown(Math.ceil(remaining / 1000));
+      const m = Math.floor(remaining / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      const timeEl = document.getElementById('countdown-time');
+      if (timeEl) {
+        timeEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        timeEl.classList.toggle('urgent', remaining < 30000);
+      }
     }
   }
 });
