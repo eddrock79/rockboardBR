@@ -705,29 +705,6 @@ window.submitRequest = async function() {
   }
   const name = document.getElementById('inp-name').value.trim() || 'Anonymous';
 
-  // ── RECENTLY PLAYED CHECK ──
-  const cheekySayings = [
-    `WE JUST HEARD THAT! 🙉 PICK SOMETHING ELSE!`,
-    `${title.toUpperCase()} WAS JUST ON! GIVE IT A REST! 🤘`,
-    `SERIOUSLY? WE LITERALLY JUST PLAYED THAT! 😂`,
-    `TOO SOON! ${artist.toUpperCase()} NEEDS A BREATHER!`,
-    `THE CROWD NEEDS VARIETY! TRY SOMETHING DIFFERENT! 🎸`,
-    `THAT ONE'S STILL RINGING IN OUR EARS! NOT YET! 🔊`,
-  ];
-  try {
-    const playedSnap = await getDocs(collection(db, C_PLAYED));
-    const cutoff = Date.now() - 60 * 60 * 1000;
-    const recentKeys = playedSnap.docs
-      .filter(d => d.data().playedAt > cutoff)
-      .map(d => (d.data().title + '|||' + d.data().artist).toLowerCase());
-    const thisKey = (title + '|||' + artist).toLowerCase();
-    if (recentKeys.includes(thisKey)) {
-      const msg = cheekySayings[Math.floor(Math.random() * cheekySayings.length)];
-      showMsg(msg, 'err');
-      return;
-    }
-  } catch(e) { /* fail open — don't block the request if check fails */ }
-
   if (!canRequest()) { updateBadge(); return; }
   useRequest();
   try {
@@ -823,7 +800,7 @@ onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
 
 // ── NOW PLAYING ──
 async function fetchNP() {
-  if (!CONFIG.spotify_worker_url) return;
+  if (!CONFIG.spotify_worker_url) { console.warn('fetchNP: no worker URL'); return; }
   try {
     const res  = await fetch(CONFIG.spotify_worker_url + '/nowplaying');
     const data = await res.json();
@@ -833,7 +810,7 @@ async function fetchNP() {
     } else {
       el.textContent = 'Nothing playing yet';
     }
-  } catch(e){}
+  } catch(e){ console.warn('fetchNP error:', e); }
 }
 fetchNP(); setInterval(fetchNP, 10000);
 
