@@ -26,9 +26,13 @@
     backdrop-filter:blur(20px);
   }
   #top-logo{height:44px;width:auto}
-  #votes-left-badge{text-align:right}
-  .vl-label{font-size:11px;font-weight:600;color:var(--grey);letter-spacing:1px;text-transform:uppercase}
-  .vl-num{font-size:36px;font-weight:900;color:var(--green);line-height:1;display:block}
+  #votes-left-badge{display:flex;align-items:center;gap:12px}
+  .counter-item{text-align:center}
+  .counter-divider{width:1px;height:36px;background:rgba(240,237,232,0.15)}
+  .vl-label{font-size:10px;font-weight:600;color:var(--grey);letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+  .vl-num{font-size:32px;font-weight:900;color:var(--green);line-height:1;display:block;text-align:center}
+  .vl-num.warn{color:var(--amber)}
+  .vl-num.empty{color:#8b0000}
 
   /* ── NOW PLAYING STRIP ── */
   #now-playing-strip{
@@ -225,7 +229,17 @@
 <div id="top-bar">
   <img id="top-logo" src="assets/Black-Rose-Logo.png" alt="The Black Rose" onerror="this.style.display='none';document.getElementById('top-venue-text').style.display='block'">
   <div id="top-venue-text" style="display:none"><div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;letter-spacing:2px">THE BLACK ROSE</div><div style="font-family:'Inter',sans-serif;font-size:12px;font-weight:700;color:#6c2bd9;letter-spacing:3px;text-transform:uppercase">ROCKBOARD</div></div>
-  <div id="votes-left-badge"><div class="vl-label">VOTES LEFT</div><span class="vl-num" id="votes-left-num">100</span></div>
+  <div id="votes-left-badge">
+    <div class="counter-item">
+      <div class="vl-label">REQUESTS LEFT</div>
+      <span class="vl-num" id="reqs-left-num">6</span>
+    </div>
+    <div class="counter-divider"></div>
+    <div class="counter-item">
+      <div class="vl-label">VOTES LEFT</div>
+      <span class="vl-num" id="votes-left-num">13</span>
+    </div>
+  </div>
 </div>
 
 <div id="now-playing-strip">
@@ -375,13 +389,13 @@ function outsideTap(e)     { window.outsideTap     && window.outsideTap(e);     
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, doc, addDoc, updateDoc, increment, arrayUnion, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, doc, addDoc, updateDoc, increment, arrayUnion, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── CONFIG ──
 const CONFIG = {
   venueName:          "THE BLACK ROSE",
-  maxRequestsPerHour: 40,
-  maxVotesPerHour:    100,
+  maxRequestsPerHour: 6,
+  maxVotesPerHour:    13,
   lastfm_user:        "eddrock79",
   lastfm_key:         "78658e952901ff5d096dc83873d22049",
   firebase: {
@@ -463,8 +477,16 @@ function votesLeft()   { return Math.max(0, CONFIG.maxVotesPerHour - getBucket('
 function reqLeft()     { return Math.max(0, CONFIG.maxRequestsPerHour - getBucket('rb_req').count); }
 
 function updateBadge() {
-  document.getElementById('votes-left-num').textContent = votesLeft();
-  const show = reqLeft() <= 0;
+  const vl = votesLeft();
+  const rl = reqLeft();
+  const vlEl = document.getElementById('votes-left-num');
+  const rlEl = document.getElementById('reqs-left-num');
+  vlEl.textContent = vl;
+  rlEl.textContent = rl;
+  // Colour coding: green → amber (≤3) → red (0)
+  vlEl.className = 'vl-num' + (vl === 0 ? ' empty' : vl <= 3 ? ' warn' : '');
+  rlEl.className = 'vl-num' + (rl === 0 ? ' empty' : rl <= 2 ? ' warn' : '');
+  const show = rl <= 0;
   document.getElementById('request-form').style.display = show ? 'none' : '';
   document.getElementById('rate-limit-screen').classList.toggle('on', show);
   if (show) startCountdown(getBucket('rb_req').windowStart);
@@ -682,6 +704,30 @@ window.submitRequest = async function() {
     if (!title)  { showMsg('FIND YOUR SONG FIRST', 'err'); return; }
   }
   const name = document.getElementById('inp-name').value.trim() || 'Anonymous';
+
+  // ── RECENTLY PLAYED CHECK ──
+  const cheekySayings = [
+    `WE JUST HEARD THAT! 🙉 PICK SOMETHING ELSE!`,
+    `${title.toUpperCase()} WAS JUST ON! GIVE IT A REST! 🤘`,
+    `SERIOUSLY? WE LITERALLY JUST PLAYED THAT! 😂`,
+    `TOO SOON! ${artist.toUpperCase()} NEEDS A BREATHER!`,
+    `THE CROWD NEEDS VARIETY! TRY SOMETHING DIFFERENT! 🎸`,
+    `THAT ONE'S STILL RINGING IN OUR EARS! NOT YET! 🔊`,
+  ];
+  try {
+    const playedSnap = await getDocs(collection(db, C_PLAYED));
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    const recentKeys = playedSnap.docs
+      .filter(d => d.data().playedAt > cutoff)
+      .map(d => (d.data().title + '|||' + d.data().artist).toLowerCase());
+    const thisKey = (title + '|||' + artist).toLowerCase();
+    if (recentKeys.includes(thisKey)) {
+      const msg = cheekySayings[Math.floor(Math.random() * cheekySayings.length)];
+      showMsg(msg, 'err');
+      return;
+    }
+  } catch(e) { /* fail open — don't block the request if check fails */ }
+
   if (!canRequest()) { updateBadge(); return; }
   useRequest();
   try {
