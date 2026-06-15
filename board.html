@@ -671,6 +671,8 @@ let aiQuoteFetching = false;
 let lastAiContext = '';
 let currentTrackFacts = null;
 let aiConnected = false;
+let currentNowPlayingTitle  = '';
+let currentNowPlayingArtist = '';
 
 // Run on startup — logs clearly whether the API key is configured
 async function testAIConnection() {
@@ -1262,9 +1264,6 @@ let nowPlayingThumb = '';
 let nowPlayingTrack = '';
 let recentlyPlayedCache = {}; // title|||artist -> playedAt timestamp
 let trackNumber = 1;
-// Module-level now playing state — used by AI ticker
-let currentNowPlayingTitle  = '';
-let currentNowPlayingArtist = '';
 
 async function fetchNowPlaying() {
   if (!CONFIG.spotify_worker_url) return;
