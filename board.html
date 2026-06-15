@@ -730,19 +730,15 @@ async function fetchAIQuotes() {
     // Build rich context for Claude
     const factLines = [];
     if (facts) {
-      if (facts.listeners)       factLines.push(`"${nowPlaying}" has ${facts.listeners} Last.fm listeners and ${facts.playcount} total plays`);
-      if (facts.albumName)       factLines.push(`From the album: "${facts.albumName}"`);
-      if (facts.duration)        factLines.push(`Track runs ${facts.duration}`);
-      if (facts.trackWiki)       factLines.push(`Track info: ${facts.trackWiki}`);
-      if (facts.artistListeners) factLines.push(`${nowArtist} has ${facts.artistListeners} Last.fm listeners — ${facts.artistPlaycount} total plays`);
-      if (facts.formed && facts.origin) factLines.push(`${nowArtist} formed in ${facts.formed} in ${facts.origin}`);
-      else if (facts.formed)     factLines.push(`${nowArtist} formed in ${facts.formed}`);
+      if (facts.albumName)       factLines.push(`Album: "${facts.albumName}"`);
+      if (facts.trackWiki)       factLines.push(`Track: ${facts.trackWiki.substring(0,120)}`);
+      if (facts.formed && facts.origin) factLines.push(`${nowArtist}: ${facts.origin}, ${facts.formed}`);
+      else if (facts.formed)     factLines.push(`${nowArtist} formed ${facts.formed}`);
       else if (facts.origin)     factLines.push(`${nowArtist} from ${facts.origin}`);
-      if (facts.members?.length) factLines.push(`Band members include: ${facts.members.join(', ')}`);
-      if (facts.similarArtists?.length) factLines.push(`Fans of ${nowArtist} also love: ${facts.similarArtists.join(', ')}`);
-      if (facts.tags?.length)    factLines.push(`Genre/tags: ${facts.tags.join(', ')}`);
-      if (facts.artistBio)       factLines.push(`Artist background: ${facts.artistBio}`);
-      if (facts.wikiArtist)      factLines.push(`Wikipedia: ${facts.wikiArtist}`);
+      if (facts.members?.length) factLines.push(`Members: ${facts.members.slice(0,4).join(', ')}`);
+      if (facts.tags?.length)    factLines.push(`Genre: ${facts.tags.slice(0,3).join(', ')}`);
+      if (facts.artistBio)       factLines.push(`Bio: ${facts.artistBio.substring(0,150)}`);
+      if (facts.wikiArtist)      factLines.push(`Wiki: ${facts.wikiArtist.substring(0,150)}`);
     }
     if (top1Facts) {
       if (top1Facts.listeners)   factLines.push(`No.1 requested "${topTrack.title}" has ${top1Facts.listeners} Last.fm listeners`);
