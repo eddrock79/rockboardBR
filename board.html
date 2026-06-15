@@ -159,6 +159,15 @@
   .track-votes { display:flex; flex-direction:column; align-items:center; gap:1px; min-width:64px; }
   .vote-count { font-family:var(--font-pixel); font-size:44px; color:var(--white); line-height:1; }
   .track-card.top-card .vote-count { color:var(--amber); font-size:48px; }
+  .cooldown-badge {
+    position:absolute; top:6px; right:44px;
+    background:rgba(139,0,0,0.85); color:#ff6b6b;
+    font-family:var(--font-pixel); font-size:9px; letter-spacing:2px;
+    padding:3px 7px; border-radius:3px; border:1px solid rgba(139,0,0,0.6);
+    display:flex; align-items:center; gap:4px; white-space:nowrap;
+  }
+  .track-card.on-cooldown { opacity:0.65; border-left-color:rgba(139,0,0,0.4); }
+  .track-card.on-cooldown .track-title { color:rgba(240,237,232,0.5); }
   .vote-label { font-family:var(--font-pixel); font-size:11px; color:rgba(240,237,232,0.3); letter-spacing:2px; }
   .rank-change { font-family:var(--font-pixel); font-size:18px; min-width:24px; text-align:center; flex-shrink:0; }
   .rank-change.up { color:var(--green); text-shadow:0 0 8px var(--green); }
@@ -427,7 +436,7 @@
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── CONFIG from config.js ──
 const CONFIG = {
@@ -1207,9 +1216,28 @@ async function confirmResetAllTime() {
 loadAllTimeTop10();
 setInterval(loadAllTimeTop10, 60000);
 
+// ── RECENTLY PLAYED CACHE — keeps cooldown badges in sync ──
+async function syncRecentlyPlayed() {
+  try {
+    const snap = await getDocs(collection(db, C_PLAYED));
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    recentlyPlayedCache = {};
+    snap.docs.forEach(d => {
+      const data = d.data();
+      if (data.playedAt > cutoff) {
+        const key = (data.title + '|||' + data.artist).toLowerCase();
+        recentlyPlayedCache[key] = data.playedAt;
+      }
+    });
+  } catch(e) {}
+}
+syncRecentlyPlayed();
+setInterval(syncRecentlyPlayed, 60000);
+
 
 let nowPlayingThumb = '';
 let nowPlayingTrack = '';
+let recentlyPlayedCache = {}; // title|||artist -> playedAt timestamp
 let trackNumber = 1;
 
 async function fetchNowPlaying() {
@@ -1653,7 +1681,16 @@ function renderLeaderboard() {
     const changeIcon = rankChange > 0 ? '▲' : rankChange < 0 ? '▼' : '—';
     const changeClass = rankChange > 0 ? 'up' : rankChange < 0 ? 'down' : 'same';
 
-    card.className = 'track-card' + (idx===0?' top-card':'') + (rankChange>0?' rising':'');
+    // Check cooldown
+    const cooldownKey = (track.title + '|||' + track.artist).toLowerCase();
+    const playedAt = recentlyPlayedCache[cooldownKey];
+    const onCooldown = !!playedAt;
+    const minsLeft = onCooldown ? Math.ceil((playedAt + 3600000 - Date.now()) / 60000) : 0;
+    const cooldownHtml = onCooldown
+      ? `<div class="cooldown-badge">⏳ BACK IN ${minsLeft}MIN</div>`
+      : '';
+
+    card.className = 'track-card' + (idx===0 && !onCooldown?' top-card':'') + (rankChange>0?' rising':'') + (onCooldown?' on-cooldown':'');
     card.style.top = top + 'px';
     // Get album art — use Spotify URI image if available, else Last.fm lookup
     const artUrl = track.spotifyImage || '';
@@ -1676,7 +1713,8 @@ function renderLeaderboard() {
         <div class="vote-count">${track.uniqueVoters}</div>
         <div class="vote-label">VOTES</div>
       </div>
-      <div class="rank-change ${changeClass}">${changeIcon}</div>`;
+      <div class="rank-change ${changeClass}">${changeIcon}</div>
+      ${cooldownHtml}`;
 
     // Fetch album art if not stored — search Last.fm
     if (!artUrl) {
