@@ -823,14 +823,19 @@ onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
 
 // ── NOW PLAYING ──
 async function fetchNP() {
-  if (!CONFIG.lastfm_key||!CONFIG.lastfm_user) return;
+  if (!CONFIG.spotify_worker_url) return;
   try {
-    const data = await lfFetch(`user.getrecenttracks&user=${CONFIG.lastfm_user}&limit=1`);
-    const t = data.recenttracks?.track?.[0];
-    if (t) document.getElementById('np-text').textContent = (t['@attr']?.nowplaying==='true'?'':' Last: ')+t.name+' - '+t.artist['#text'];
+    const res  = await fetch(CONFIG.spotify_worker_url + '/nowplaying');
+    const data = await res.json();
+    const el   = document.getElementById('np-text');
+    if (data.playing && data.name) {
+      el.textContent = data.name + ' - ' + data.artist;
+    } else {
+      el.textContent = 'Nothing playing yet';
+    }
   } catch(e){}
 }
-fetchNP(); setInterval(fetchNP, 15000);
+fetchNP(); setInterval(fetchNP, 10000);
 
 // ── LASTFM HELPERS ──
 async function lfFetch(method) {
