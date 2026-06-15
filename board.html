@@ -673,6 +673,7 @@ let currentTrackFacts = null;
 let aiConnected = false;
 let currentNowPlayingTitle  = '';
 let currentNowPlayingArtist = '';
+let tracks = []; // Firestore track list — declared here to avoid temporal dead zone in fetchAIQuotes
 
 // Run on startup — logs clearly whether the API key is configured
 async function testAIConnection() {
@@ -1677,7 +1678,6 @@ try {
 }
 
 // ── LEADERBOARD (Firebase live) ──
-let tracks = [];
 let prevRanks = {};
 const CARD_H = 100; // 96px card + 4px gap
 
