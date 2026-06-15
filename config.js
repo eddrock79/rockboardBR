@@ -20,8 +20,8 @@ const VENUE_CONFIG = {
   youtube_key:  "AIzaSyCjTo6q-KwV051JIT70GB9F4-ZPDS8dMo4",
 
   // ── SPOTIFY (Auto-queue via Cloudflare Worker) ───────────
-  spotify_worker_url:    "https://rockboard.eddrock79.workers.dev",  // ← fill this in after deploying worker
-  spotify_playlist_id:   "3lj6qRLWbJKbFkXtrlJCHc",
+  spotify_worker_url:    "https://rockboard-br.eddrock79.workers.dev",
+  spotify_playlist_id:   "5awfaBe5nWBiHex2Nl4nJD",
 
   // ── VOTING RULES ─────────────────────────────────────────
   maxRequestsPerHour: 40,
