@@ -700,8 +700,8 @@ async function fetchAIQuotes() {
     const safeTracks  = (typeof tracks !== 'undefined' && Array.isArray(tracks)) ? tracks : [];
     const topTrack    = [...safeTracks].filter(t=>t.approved).sort((a,b)=>b.uniqueVoters-a.uniqueVoters||(a.addedAt||0)-(b.addedAt||0))[0];
     const totalVotes  = safeTracks.filter(t=>t.approved).reduce((s,t)=>s+t.uniqueVoters,0);
-    const nowPlaying  = document.getElementById('track-name').textContent;
-    const nowArtist   = document.getElementById('track-artist').textContent;
+    const nowPlaying  = currentNowPlayingTitle  || document.getElementById('track-name').textContent;
+    const nowArtist   = currentNowPlayingArtist || document.getElementById('track-artist').textContent;
     const trackCount  = safeTracks.filter(t=>t.approved).length;
 
     const context = `${nowPlaying}|${topTrack?.title}|${totalVotes}|${trackCount}`;
@@ -1146,8 +1146,11 @@ setInterval(() => {
 })();
 
 testAIConnection();
-fetchAIQuotes();
-setInterval(fetchAIQuotes, 60 * 1000);
+// Delay first AI fetch until Spotify now playing has had time to populate
+setTimeout(() => {
+  fetchAIQuotes();
+  setInterval(fetchAIQuotes, 60 * 1000);
+}, 8000);
 nextQuote();
 
 // ── ALL-TIME TOP 10 ──
@@ -1239,6 +1242,9 @@ let nowPlayingThumb = '';
 let nowPlayingTrack = '';
 let recentlyPlayedCache = {}; // title|||artist -> playedAt timestamp
 let trackNumber = 1;
+// Module-level now playing state — used by AI ticker
+let currentNowPlayingTitle  = '';
+let currentNowPlayingArtist = '';
 
 async function fetchNowPlaying() {
   if (!CONFIG.spotify_worker_url) return;
@@ -1250,6 +1256,10 @@ async function fetchNowPlaying() {
     const artist = data.artist || '';
     const thumb  = data.image  || '';
     const trackKey = title + '|||' + artist;
+
+    // Store in module-level vars for AI ticker to use
+    currentNowPlayingTitle  = isNow ? title : '';
+    currentNowPlayingArtist = isNow ? artist : '';
 
     document.getElementById('track-name').textContent   = isNow ? title : '—';
     document.getElementById('track-artist').textContent = isNow ? artist : 'Nothing playing yet';
