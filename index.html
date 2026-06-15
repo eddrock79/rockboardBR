@@ -396,6 +396,11 @@ const CONFIG = {
 
 const fbApp = initializeApp(CONFIG.firebase);
 const db    = getFirestore(fbApp);
+// ── BR venue collection names ──
+const C_TRACKS   = 'br_tracks';
+const C_PLAYED   = 'br_played';
+const C_SETTINGS = 'br_settings';
+const C_ALLTIME  = 'br_alltime';
 const topVenue = document.getElementById('top-venue');
 if (topVenue) topVenue.textContent = CONFIG.venueName;
 document.title = CONFIG.venueName + ' · Request a Track';
@@ -422,7 +427,7 @@ document.title = CONFIG.venueName + ' · Request a Track';
 
   // Validate token against Firebase
   try {
-    const snap = await getDoc(doc(db, 'settings', 'session'));
+    const snap = await getDoc(doc(db, C_SETTINGS, 'session'));
     if (!snap.exists()) { window.location.replace(REDIRECT_URL); return; }
     const { token, expiry } = snap.data();
     if (storedToken !== token || Date.now() > expiry) {
@@ -691,7 +696,7 @@ window.submitRequest = async function() {
       if (img && !img.includes('noimage')) spotifyImage = img;
     } catch(e) {}
 
-    await addDoc(collection(db,'tracks'), {
+    await addDoc(collection(db,C_TRACKS), {
       title, artist, requester:name,
       votes:1, uniqueVoters:1, voters:[DEVICE_ID],
       approved: genreMismatch ? false : false, // always pending, genre mismatch flagged
@@ -715,14 +720,14 @@ window.voteFor = async function(id) {
   if (!canVote(id))  { showToast("YOU'VE USED ALL YOUR VOTES"); updateBadge(); return; }
   useVote(id);
   try {
-    await updateDoc(doc(db,'tracks',id), { votes:increment(1), uniqueVoters:increment(1), voters:arrayUnion(DEVICE_ID) });
+    await updateDoc(doc(db,C_TRACKS,id), { votes:increment(1), uniqueVoters:increment(1), voters:arrayUnion(DEVICE_ID) });
     showToast('🤘 VOTE CAST!');
   } catch(e) { showToast('ERROR · TRY AGAIN'); }
   updateBadge();
 };
 
 // ── LIVE BOARD ──
-const lq = query(collection(db,'tracks'), orderBy('uniqueVoters','desc'));
+const lq = query(collection(db,C_TRACKS), orderBy('uniqueVoters','desc'));
 onSnapshot(lq, snap => {
   const tracks = snap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.approved);
   const el = document.getElementById('vote-list');
@@ -748,7 +753,7 @@ onSnapshot(lq, snap => {
 
 // ── VOTE COUNTDOWN ──
 let reqCountdownTimer = null;
-onSnapshot(doc(db,'settings','venue'), (snap) => {
+onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
   if (!snap.exists()) return;
   const data = snap.data();
   const strip = document.getElementById('vote-countdown-strip');

@@ -450,7 +450,7 @@ function generateToken() {
 
 async function initSession() {
   const { getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-  const sessionRef = doc(db, 'settings', 'session');
+  const sessionRef = doc(db, C_SETTINGS, 'session');
   const snap = await getDoc(sessionRef);
   const now = Date.now();
   let token, expiry;
@@ -827,6 +827,11 @@ function getNextQuote() {
 // ── INIT FIREBASE ──
 const app = initializeApp(CONFIG.firebase);
 const db = getFirestore(app);
+// ── BR venue collection names ──
+const C_TRACKS   = 'br_tracks';
+const C_PLAYED   = 'br_played';
+const C_SETTINGS = 'br_settings';
+const C_ALLTIME  = 'br_alltime';
 
 // ── START SESSION (QR token) once Firebase is ready ──
 initSession();
@@ -837,7 +842,7 @@ const statusEl = document.getElementById('firebase-status');
 let countdownTimer = null;
 let totalQueueMs = 2 * 60 * 1000;
 
-onSnapshot(doc(db,'settings','venue'), (snap) => {
+onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
   if (!snap.exists()) return;
   const data = snap.data();
 
@@ -932,7 +937,7 @@ async function boardSpotifyCall(endpoint, method='GET', body=null) {
 async function boardGetRecentlyPlayed() {
   try {
     const { getDocs, collection: col } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const snap = await getDocs(col(db,'played'));
+    const snap = await getDocs(col(db,C_PLAYED));
     const cutoff = Date.now() - 60 * 60 * 1000;
     return snap.docs
       .filter(d => d.data().playedAt > cutoff)
@@ -978,23 +983,23 @@ async function boardRunAutoQueue() {
     const result = await boardSpotifyCall('/queue', 'POST', { uri:found.uri });
     if (result?.ok) {
       // Mark as queued in Firebase
-      await updateDoc(doc(db,'tracks',top.id), {
+      await updateDoc(doc(db,C_TRACKS,top.id), {
         spotifyQueued:true, spotifyUri:found.uri, queuedAt:Date.now()
       });
       // Set next queue time — exactly N minutes from NOW
       const nextAt = Date.now() + (boardAutoQueueMins * 60 * 1000);
       nextQueueAt_local = nextAt; // update local mirror immediately
-      await updateDoc(doc(db,'settings','venue'), { nextQueueAt: nextAt });
+      await updateDoc(doc(db,C_SETTINGS,'venue'), { nextQueueAt: nextAt });
       console.log(`✅ Queued: ${top.title} | Next queue at: ${new Date(nextAt).toLocaleTimeString()}`);
 
       // Auto-remove from board after 30 seconds
       setTimeout(async () => {
         try {
-          await setDoc(doc(db,'played',top.id), {
+          await setDoc(doc(db,C_PLAYED,top.id), {
             title:top.title, artist:top.artist,
             playedAt:Date.now(), spotifyUri:found.uri
           });
-          await deleteDoc(doc(db,'tracks',top.id));
+          await deleteDoc(doc(db,C_TRACKS,top.id));
           // Record to all-time leaderboard
           recordPlayedToAllTime(top.title, top.artist, top.thumb || '');
           loadAllTimeTop10();
@@ -1022,7 +1027,7 @@ function startBoardQueueChecker() {
       // Double-check with Firebase to prevent race conditions
       try {
         const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-        const snap = await getDoc(doc(db,'settings','venue'));
+        const snap = await getDoc(doc(db,C_SETTINGS,'venue'));
         if (!snap.exists()) return;
         const data = snap.data();
         if (!data.autoQueue) return; // auto-queue was turned off
@@ -1143,7 +1148,7 @@ async function recordPlayedToAllTime(title, artist, thumb) {
   try {
     const { getDoc, setDoc: sd, doc: d } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     const key = (title + '|||' + artist).replace(/[^a-zA-Z0-9|_\- ]/g,'').substring(0,100);
-    const ref = d(db, 'alltime', key);
+    const ref = d(db, C_ALLTIME, key);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const existing = snap.data();
@@ -1158,7 +1163,7 @@ async function loadAllTimeTop10() {
   try {
     const { getDocs: gd, collection: col, query: q, orderBy: ob, limit: lim } =
       await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const snap = await gd(q(col(db,'alltime'), ob('plays','desc'), lim(10)));
+    const snap = await gd(q(col(db,C_ALLTIME), ob('plays','desc'), lim(10)));
     const panel = document.getElementById('alltime-panel');
     const list  = document.getElementById('alltime-list');
     if (snap.empty) { panel.classList.remove('show'); return; }
@@ -1190,8 +1195,8 @@ async function confirmResetAllTime() {
   try {
     const { getDocs: gd, collection: col, deleteDoc: dd, doc: d } =
       await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const snap = await gd(col(db,'alltime'));
-    await Promise.all(snap.docs.map(dc => dd(d(db,'alltime',dc.id))));
+    const snap = await gd(col(db,C_ALLTIME));
+    await Promise.all(snap.docs.map(dc => dd(d(db,C_ALLTIME,dc.id))));
     document.getElementById('alltime-panel').classList.remove('show');
     document.getElementById('alltime-list').innerHTML = '';
     alert('All-time board cleared.');
@@ -1715,14 +1720,14 @@ function renderLeaderboard() {
 
 // Listen to Firestore in real time
 try {
-  const q = query(collection(db, 'tracks'), orderBy('uniqueVoters','desc'));
+  const q = query(collection(db, C_TRACKS), orderBy('uniqueVoters','desc'));
   onSnapshot(q, (snapshot) => {
     tracks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     // Auto-approve: if enabled on staff panel, approve pending tracks immediately on the board
     if (window.boardAutoApprove) {
       const pending = tracks.filter(t => !t.approved);
       pending.forEach(t => {
-        updateDoc(doc(db, 'tracks', t.id), { approved: true }).catch(() => {});
+        updateDoc(doc(db, C_TRACKS, t.id), { approved: true }).catch(() => {});
       });
     }
     boardTracks = tracks; // keep auto-queue engine in sync

@@ -288,6 +288,11 @@ const CONFIG = {
 
 const fbApp = initializeApp(CONFIG.firebase);
 const db    = getFirestore(fbApp);
+// ── BR venue collection names ──
+const C_TRACKS   = 'br_tracks';
+const C_PLAYED   = 'br_played';
+const C_SETTINGS = 'br_settings';
+const C_ALLTIME  = 'br_alltime';
 
 document.getElementById('s-sub').textContent = CONFIG.venueName;
 document.getElementById('s-venue').textContent = 'STAFF · ' + CONFIG.venueName;
@@ -317,7 +322,7 @@ async function showApp() {
     // Restore saved interval from Firebase
     try {
       const { getDoc: gd } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-      const snap = await gd(doc(db,'settings','venue'));
+      const snap = await gd(doc(db,C_SETTINGS,'venue'));
       if (snap.exists() && snap.data().autoQueueMins) {
         const savedMins = snap.data().autoQueueMins;
         document.getElementById('interval-input').value = savedMins;
@@ -337,7 +342,7 @@ async function showApp() {
 async function restoreAllStates() {
   try {
     const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const snap = await getDoc(doc(db,'settings','venue'));
+    const snap = await getDoc(doc(db,C_SETTINGS,'venue'));
     if (!snap.exists()) return;
     const data = snap.data();
     // Restore auto-approve
@@ -396,7 +401,7 @@ let unsubscribe = null;
 
 function startListening() {
   if (unsubscribe) return;
-  const q = query(collection(db,'tracks'), orderBy('createdAt','desc'));
+  const q = query(collection(db,C_TRACKS), orderBy('createdAt','desc'));
   unsubscribe = onSnapshot(q, (snapshot) => {
     allTracks = snapshot.docs.map(d => ({ id:d.id, ...d.data() }));
     renderPending();
@@ -409,14 +414,14 @@ window._keepTrack = async function(id) {
   const card = document.getElementById('rc-'+id);
   if (card) card.classList.add('keeping');
   setTimeout(async () => {
-    try { await updateDoc(doc(db,'tracks',id), { approved:true }); } catch(e) { console.error(e); }
+    try { await updateDoc(doc(db,C_TRACKS,id), { approved:true }); } catch(e) { console.error(e); }
   }, 300);
 };
 window._ditchTrack = async function(id) {
   const card = document.getElementById('rc-'+id);
   if (card) card.classList.add('ditching');
   setTimeout(async () => {
-    try { await deleteDoc(doc(db,'tracks',id)); } catch(e) { console.error(e); }
+    try { await deleteDoc(doc(db,C_TRACKS,id)); } catch(e) { console.error(e); }
   }, 300);
 };
 
@@ -425,12 +430,12 @@ let tshirtOn = CONFIG.tshirtMode;
 
 async function syncTshirtState() {
   try {
-    await updateDoc(doc(db,'settings','venue'), { tshirtMode: tshirtOn });
+    await updateDoc(doc(db,C_SETTINGS,'venue'), { tshirtMode: tshirtOn });
   } catch(e) {
     // doc may not exist yet — create it
     try {
       const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-      await setDoc(doc(db,'settings','venue'), { tshirtMode: tshirtOn }, { merge: true });
+      await setDoc(doc(db,C_SETTINGS,'venue'), { tshirtMode: tshirtOn }, { merge: true });
     } catch(e2) { console.warn('Could not sync tshirt state', e2); }
   }
 }
@@ -463,10 +468,10 @@ window._toggleAutoApprove = function() {
   applyAutoApproveUI(newState);
   if (newState) approveAll();
   // Persist to Firebase
-  updateDoc(doc(db,'settings','venue'), { autoApprove: newState }).catch(async () => {
+  updateDoc(doc(db,C_SETTINGS,'venue'), { autoApprove: newState }).catch(async () => {
     try {
       const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-      await setDoc(doc(db,'settings','venue'), { autoApprove: newState }, { merge:true });
+      await setDoc(doc(db,C_SETTINGS,'venue'), { autoApprove: newState }, { merge:true });
     } catch(e) {}
   });
 };
@@ -477,7 +482,7 @@ window._approveAll = async function() {
   if (!pending.length) return;
   try {
     const batch = writeBatch(db);
-    pending.forEach(t => batch.update(doc(db,'tracks',t.id), { approved: true }));
+    pending.forEach(t => batch.update(doc(db,C_TRACKS,t.id), { approved: true }));
     await batch.commit();
   } catch(e) { console.error('Approve all failed', e); }
 };
@@ -505,7 +510,7 @@ window._revealWinner = function() {
 window._clearNight = async function() {
   if (!confirm('Start a new night? This permanently deletes ALL tracks and votes.')) return;
   try {
-    const snapshot = await getDocs(collection(db,'tracks'));
+    const snapshot = await getDocs(collection(db,C_TRACKS));
     const batch = writeBatch(db);
     snapshot.docs.forEach(d => batch.delete(d.ref));
     await batch.commit();
@@ -529,7 +534,7 @@ async function renderPlayedHistory() {
   list.innerHTML = '<div class="empty-state">LOADING...</div>';
   try {
     const { getDocs: getD, collection: col } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const snap = await getD(col(db,'played'));
+    const snap = await getD(col(db,C_PLAYED));
     const cutoff = Date.now() - 60 * 60 * 1000;
     const played = snap.docs
       .map(d => ({ id:d.id, ...d.data() }))
@@ -629,16 +634,16 @@ window._queueTopTrack = async function() {
   const result = await spotifyCall('/queue', 'POST', { uri: found.uri });
   console.log('Queue result:', JSON.stringify(result));
   if (result?.ok) {
-    await updateDoc(doc(db,'tracks',top.id), { spotifyQueued: true, spotifyUri: found.uri, queuedAt: Date.now() });
+    await updateDoc(doc(db,C_TRACKS,top.id), { spotifyQueued: true, spotifyUri: found.uri, queuedAt: Date.now() });
     showStaffToast('✅ QUEUED: ' + found.name + ' — REMOVING IN 30s');
     setTimeout(async () => {
       try {
         const { setDoc: sd2 } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-        await sd2(doc(db,'played',top.id), {
+        await sd2(doc(db,C_PLAYED,top.id), {
           title: top.title, artist: top.artist,
           playedAt: Date.now(), spotifyUri: found.uri,
         });
-        await deleteDoc(doc(db,'tracks',top.id));
+        await deleteDoc(doc(db,C_TRACKS,top.id));
         showStaffToast('✅ REMOVED: ' + found.name);
       } catch(e) { console.warn('Auto-remove failed', e); }
     }, 30000);
@@ -667,15 +672,15 @@ function applyAutoQueueState(on) {
   // Staff page only controls settings — board does the actual queuing
   if (on) {
     const stuck = allTracks.filter(t => t.approved && t.spotifyQueued && !t.queuedAt);
-    stuck.forEach(t => updateDoc(doc(db,'tracks',t.id), { spotifyQueued:false }).catch(()=>{}));
+    stuck.forEach(t => updateDoc(doc(db,C_TRACKS,t.id), { spotifyQueued:false }).catch(()=>{}));
     const nextAt = Date.now() + 5000;
-    updateDoc(doc(db,'settings','venue'), {
+    updateDoc(doc(db,C_SETTINGS,'venue'), {
       autoQueue: true,
       autoQueueMins: CONFIG.autoQueueMins || 2,
       nextQueueAt: nextAt
     }).catch(()=>{});
   } else {
-    updateDoc(doc(db,'settings','venue'), { autoQueue:false, nextQueueAt:null }).catch(()=>{});
+    updateDoc(doc(db,C_SETTINGS,'venue'), { autoQueue:false, nextQueueAt:null }).catch(()=>{});
   }
 }
 window._toggleAutoQueue = function() {
@@ -691,10 +696,10 @@ window._updateInterval = function(v) {
   if (autoQueueOn) {
     // Reset countdown to start fresh from NOW with new interval
     const nextAt = Date.now() + (m * 60 * 1000);
-    updateDoc(doc(db,'settings','venue'), { autoQueueMins: m, nextQueueAt: nextAt }).catch(()=>{});
+    updateDoc(doc(db,C_SETTINGS,'venue'), { autoQueueMins: m, nextQueueAt: nextAt }).catch(()=>{});
     showStaffToast('⏱ ' + m + ' MIN TIMER — COUNTDOWN RESET');
   } else {
-    updateDoc(doc(db,'settings','venue'), { autoQueueMins: m }).catch(()=>{});
+    updateDoc(doc(db,C_SETTINGS,'venue'), { autoQueueMins: m }).catch(()=>{});
     showStaffToast('⏱ INTERVAL SET TO ' + m + ' MINS');
   }
 };
@@ -702,7 +707,7 @@ window._updateInterval = function(v) {
 window._updateVideoOffset = function(secs) {
   const s = Math.max(-30, Math.min(30, parseInt(secs) || 0));
   document.getElementById('offset-input').value = s;
-  updateDoc(doc(db,'settings','venue'), { videoOffset: s }).catch(()=>{});
+  updateDoc(doc(db,C_SETTINGS,'venue'), { videoOffset: s }).catch(()=>{});
   showStaffToast('🎬 VIDEO OFFSET: ' + (s >= 0 ? '+' : '') + s + 's');
 };
 
@@ -711,7 +716,7 @@ window._updateVideoOffset = function(secs) {
 async function getRecentlyPlayed() {
   try {
     const { getDocs: getD, collection: col } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const snap = await getD(col(db,'played'));
+    const snap = await getD(col(db,C_PLAYED));
     const cutoff = Date.now() - 60 * 60 * 1000; // 1 hour ago
     return snap.docs
       .filter(d => d.data().playedAt > cutoff)
@@ -773,18 +778,18 @@ async function runAutoQueue() {
   if (!found?.uri) { showStaffToast('⏱ NOT FOUND ON SPOTIFY: ' + top.title); return; }
   const result = await spotifyCall('/queue', 'POST', { uri: found.uri });
   if (result?.ok) {
-    await updateDoc(doc(db,'tracks',top.id), { spotifyQueued: true, spotifyUri: found.uri, queuedAt: Date.now() });
+    await updateDoc(doc(db,C_TRACKS,top.id), { spotifyQueued: true, spotifyUri: found.uri, queuedAt: Date.now() });
     showStaffToast('⏱ QUEUED: ' + found.name + ' — REMOVING IN 30s');
     // Auto-remove from board after 30 seconds (track is in Spotify queue)
     setTimeout(async () => {
       try {
         // Record as played before removing
         const { setDoc: sd } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-        await sd(doc(db,'played',top.id), {
+        await sd(doc(db,C_PLAYED,top.id), {
           title: top.title, artist: top.artist,
           playedAt: Date.now(), spotifyUri: found.uri,
         });
-        await deleteDoc(doc(db,'tracks',top.id));
+        await deleteDoc(doc(db,C_TRACKS,top.id));
         showStaffToast('✅ REMOVED: ' + found.name + ' — QUEUING NEXT...');
         // Queue the next track
         setTimeout(() => runAutoQueue(), 2000);
@@ -800,7 +805,7 @@ window._banTrack = async function(id, title, artist) {
     const key = (title + '|||' + artist).toLowerCase().replace(/[^a-z0-9|||]/g,'_');
     await sd(doc(db,'banned', key), { title, artist, bannedAt: Date.now() });
     // Also ditch the track from pending/approved
-    await deleteDoc(doc(db,'tracks',id));
+    await deleteDoc(doc(db,C_TRACKS,id));
     showStaffToast('🚫 BANNED: ' + title);
     renderBanned();
   } catch(e) { showStaffToast('❌ BAN FAILED'); }
@@ -840,12 +845,12 @@ window._markPlayed = async function(id) {
   // Find the track before deleting it
   const track = allTracks.find(t => t.id === id);
   // Delete from active board
-  await deleteDoc(doc(db,'tracks',id));
+  await deleteDoc(doc(db,C_TRACKS,id));
   // Record in played history with timestamp
   if (track) {
     try {
       const { setDoc, getDoc, doc: d2 } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-      await setDoc(doc(db,'played', id), {
+      await setDoc(doc(db,C_PLAYED, id), {
         title:    track.title,
         artist:   track.artist,
         playedAt: Date.now(),
@@ -853,7 +858,7 @@ window._markPlayed = async function(id) {
       });
       // ── Record to all-time leaderboard ──
       const key = (track.title + '|||' + track.artist).replace(/[^a-zA-Z0-9|_\- ]/g,'').substring(0,100);
-      const ref = d2(db, 'alltime', key);
+      const ref = d2(db, C_ALLTIME, key);
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const ex = snap.data();
@@ -875,7 +880,7 @@ async function cleanPlayedHistory() {
   try {
     const { getDocs: getD, collection: col, where, query: q2, deleteDoc: delD, doc: d2 } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     const cutoff = Date.now() - 60 * 60 * 1000;
-    const snap = await getD(col(db,'played'));
+    const snap = await getD(col(db,C_PLAYED));
     snap.docs.forEach(async docSnap => {
       if (docSnap.data().playedAt < cutoff) await delD(docSnap.ref);
     });
@@ -889,7 +894,7 @@ setInterval(async () => {
   const now = Date.now();
   const stale = allTracks.filter(t => t.approved && t.spotifyQueued && t.queuedAt && (now - t.queuedAt) > 15 * 60 * 1000);
   for (const t of stale) {
-    await deleteDoc(doc(db,'tracks',t.id));
+    await deleteDoc(doc(db,C_TRACKS,t.id));
   }
 }, 60 * 1000); // check every minute
 
