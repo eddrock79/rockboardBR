@@ -798,22 +798,34 @@ Good example: ["Nevermind outsold Michael Jackson the week it dropped. Kurt was 
     const data = await response.json();
     // Surface auth/config errors clearly
     if (data.error) {
-      console.error('🔴 AI quotes worker error:', data.error, '— Check ANTHROPIC_API_KEY is set in Cloudflare worker env vars');
+      console.error('🔴 AI quotes worker error:', data.error);
       aiQuoteFetching = false; return;
     }
     const text = data.content?.[0]?.text || '';
-    const cleaned = text.replace(/```json[\s\S]*?```/g, t => t.replace(/```json|```/g,'')).replace(/```/g,'').trim();
-    const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
-    if (start !== -1 && end !== -1) {
-      const quotes = JSON.parse(cleaned.substring(start, end+1));
-      if (Array.isArray(quotes) && quotes.length > 0) {
-        aiConnected = true;
-        aiQuoteQueue.push(...quotes.filter(q => typeof q === 'string' && q.length > 0));
-        if (aiQuoteQueue.length > 40) aiQuoteQueue = aiQuoteQueue.slice(-25);
+    console.log('🎯 AI raw response length:', text.length, 'preview:', text.substring(0,100));
+    if (!text) { console.warn('⚠ Empty AI response'); aiQuoteFetching = false; return; }
+    // Try direct JSON parse first, then extract array
+    let quotes = null;
+    try {
+      const cleaned = text.replace(/```json/g,'').replace(/```/g,'').trim();
+      const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
+      if (start !== -1 && end !== -1) {
+        quotes = JSON.parse(cleaned.substring(start, end+1));
       }
+    } catch(parseErr) {
+      console.warn('⚠ JSON parse failed:', parseErr.message, 'raw:', text.substring(0,200));
+    }
+    if (Array.isArray(quotes) && quotes.length > 0) {
+      aiConnected = true;
+      const valid = quotes.filter(q => typeof q === 'string' && q.length > 0);
+      console.log('✅ AI quotes loaded:', valid.length, 'first:', valid[0]);
+      aiQuoteQueue.push(...valid);
+      if (aiQuoteQueue.length > 40) aiQuoteQueue = aiQuoteQueue.slice(-25);
+    } else {
+      console.warn('⚠ No valid quotes parsed from AI response');
     }
   } catch(e) {
-    console.warn('AI quotes failed:', e);
+    console.error('🔴 AI quotes fetch error:', e.message);
   }
   aiQuoteFetching = false;
 }
