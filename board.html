@@ -752,46 +752,16 @@ async function fetchAIQuotes() {
       if (top1Facts.artistBio)   factLines.push(`${topTrack.artist} background: ${top1Facts.artistBio.substring(0,200)}`);
     }
 
-    const prompt = `You are the ticker voice of ROCKBOARD — a live music voting screen at The Black Rose, a rock, metal and goth bar in Edinburgh, Scotland. Generate 10 short ticker messages for the bottom of the display.
+    const prompt = `ROCKBOARD ticker — The Black Rose, Edinburgh rock bar. Return ONLY a JSON array of 10 strings, max 14 words each.
 
-LIVE BOARD STATE:
-- Now playing: "${nowPlaying}" by ${nowArtist}
-- No.1 most voted: ${topTrack ? '"' + topTrack.title + '" by ' + topTrack.artist + ' (' + topTrack.uniqueVoters + ' votes)' : 'nothing yet'}
-- Total votes tonight: ${totalVotes}
-- Tracks on board: ${trackCount}
+NOW PLAYING: "${nowPlaying}" by ${nowArtist}
+NO.1 REQUESTED: ${topTrack ? '"' + topTrack.title + '" by ' + topTrack.artist + ' (' + topTrack.uniqueVoters + ' votes)' : 'none yet'}
+VOTES TONIGHT: ${totalVotes} across ${trackCount} tracks
+FACTS: ${factLines.length ? factLines.slice(0,6).map(f=>f).join(' | ') : 'use general knowledge'}
 
-RAW DATA (mine this for surprising, weird, or impressive facts — don't just repeat it verbatim):
-${factLines.length ? factLines.map(f=>'- '+f).join('\n') : '- No data yet — use general knowledge about the artist'}
-
-WHAT TO LOOK FOR in the data above:
-- Surprising numbers: if a track has 50M+ plays, that's remarkable. If it has 500, that's also interesting.
-- Origin stories: where a band formed, unusual circumstances, who was in the band before fame
-- Album context: what was happening when this album came out, what it was a reaction to
-- Connections: band members who went on to other famous bands, who influenced who
-- Records or firsts: fastest to No.1, longest in charts, first band to do X
-- Contrast: a heavy metal track that charted alongside something completely different
-- Dark or weird facts buried in the Wikipedia/bio text — read it carefully
-- If total plays are very high, note it memorably: "Played ${totalVotes} times tonight alone"
-
-STYLE — sharp, dry, knowledgeable rock bar announcer. Edinburgh wit. Specific always beats generic.
-
-Mix these 10 as:
-- Weird/surprising fact about now playing track or artist (3): Find the most unexpected thing in the data. "Smells Like Teen Spirit almost didn't make Nevermind — Cobain thought it was too commercial."
-- Live board commentary (2): Vote gap, momentum, who's winning. Specific numbers.
-- Edinburgh / Black Rose flavour (2): Dark, local, dry. "Edinburgh has survived plague, famine, and the Proclaimers. It can handle your request."
-- No.1 requested track fact (1): Something specific about the top-voted track
-- Vote call-to-action (1): Sharp, not cheesy
-- Wild card (1): Anything — a connection between now playing and the most voted, a weird coincidence, a challenge to the crowd
-
-RULES:
-- MAX 14 words per message — scrolls across a screen
-- NO listener count quotes like "X has Y listeners" — that's boring. Transform data into stories.
-- Dry beats loud. Specific beats generic. Weird beats obvious.
-- No exclamation marks unless the moment genuinely earns one
-- Return ONLY a JSON array of 10 strings, nothing else
-
-Bad example: ["Nirvana has 5 million listeners on Last.fm"]
-Good example: ["Nevermind outsold Michael Jackson the week it dropped. Kurt was mortified."]`;
+Write: 3 surprising facts (specific, weird, not obvious), 2 board commentary (votes/momentum), 2 Edinburgh/Black Rose dark wit, 1 No.1 track fact, 1 vote CTA, 1 wild card.
+Style: dry, sharp, specific. No exclamation marks. No listener counts.
+Example: ["Nevermind outsold Michael Jackson the week it dropped. Kurt was mortified."]`;
 
     // Route through Cloudflare worker to avoid CORS
     const response = await fetch(CONFIG.spotify_worker_url + '/ai-quotes', {
