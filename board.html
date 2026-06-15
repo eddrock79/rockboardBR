@@ -1213,17 +1213,14 @@ let nowPlayingTrack = '';
 let trackNumber = 1;
 
 async function fetchNowPlaying() {
-  if (!CONFIG.lastfm_key || !CONFIG.lastfm_user) return;
+  if (!CONFIG.spotify_worker_url) return;
   try {
-    const url = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${CONFIG.lastfm_user}&api_key=${CONFIG.lastfm_key}&format=json&limit=1`;
-    const res = await fetch(url);
+    const res  = await fetch(CONFIG.spotify_worker_url + '/nowplaying');
     const data = await res.json();
-    const track = data.recenttracks?.track?.[0];
-    if (!track) return;
-    const title  = track.name;
-    const artist = track.artist['#text'];
-    const thumb  = (track.image?.find(i => i.size === 'extralarge')?.['#text'] || '').replace(/\/noimage\//i,'');
-    const isNow  = track['@attr']?.nowplaying === 'true';
+    const isNow  = !!data.playing;
+    const title  = data.name  || '';
+    const artist = data.artist || '';
+    const thumb  = data.image  || '';
     const trackKey = title + '|||' + artist;
 
     document.getElementById('track-name').textContent   = isNow ? title : '—';
@@ -1250,11 +1247,11 @@ async function fetchNowPlaying() {
       // Flush stale AI quotes from the previous track immediately
       aiQuoteQueue = [];
       lastAiContext = '';
-      // Wait 20s for Last.fm to scrobble the new track, then fetch fresh quotes about it
+      // Wait 5s then fetch fresh AI quotes about the new track
       clearTimeout(window._aiTrackChangeTimer);
       window._aiTrackChangeTimer = setTimeout(() => {
         fetchAIQuotes();
-      }, 20000);
+      }, 5000);
 
       // Update album art background
       if (thumb && thumb !== nowPlayingThumb) {
@@ -1277,7 +1274,7 @@ async function fetchNowPlaying() {
         searchYouTube(title, artist);
       }
     }
-  } catch(e) { console.warn('Last.fm error', e); }
+  } catch(e) { console.warn('Spotify nowplaying error', e); }
 }
 
 // ── ACTIVATE ON FIRST TAP (needed for autoplay) ──
