@@ -748,14 +748,14 @@ async function fetchAIQuotes() {
       if (top1Facts.artistBio)   factLines.push(`${topTrack.artist} background: ${top1Facts.artistBio.substring(0,200)}`);
     }
 
-    const prompt = `ROCKBOARD ticker — The Black Rose, Edinburgh rock bar. Return ONLY a JSON array of 10 strings, max 14 words each.
+    const prompt = `ROCKBOARD ticker — The Black Rose, Edinburgh rock bar. Return ONLY a JSON array of 6 strings, max 12 words each.
 
 NOW PLAYING: "${nowPlaying}" by ${nowArtist}
 NO.1 REQUESTED: ${topTrack ? '"' + topTrack.title + '" by ' + topTrack.artist + ' (' + topTrack.uniqueVoters + ' votes)' : 'none yet'}
 VOTES TONIGHT: ${totalVotes} across ${trackCount} tracks
 FACTS: ${factLines.length ? factLines.slice(0,6).map(f=>f).join(' | ') : 'use general knowledge'}
 
-Write: 3 surprising facts (specific, weird, not obvious), 2 board commentary (votes/momentum), 2 Edinburgh/Black Rose dark wit, 1 No.1 track fact, 1 vote CTA, 1 wild card.
+Write: 2 surprising facts about now playing, 1 board commentary, 1 Edinburgh/Black Rose dark wit, 1 No.1 track fact, 1 vote CTA.
 Style: dry, sharp, specific. No exclamation marks. No listener counts.
 Example: ["Nevermind outsold Michael Jackson the week it dropped. Kurt was mortified."]`;
 
