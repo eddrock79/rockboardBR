@@ -403,7 +403,7 @@
 </div>
 
 <div id="qr-hint">
-  <div id="qr-canvas" style="width:160px;height:160px;margin:0 auto 8px;"></div>
+  <div id="qr-canvas" style="width:320px;height:320px;margin:0 auto 8px;"></div>
   <div id="qr-hint-label">SCAN TO VOTE</div>
 </div>
 
@@ -507,7 +507,7 @@ function buildQR(token, expiry) {
     if (typeof QRCode === 'undefined') { setTimeout(tryGen, 300); return; }
     new QRCode(container, {
       text: voteUrl,
-      width: 160, height: 160,
+      width: 320, height: 320,
       colorDark: '#f0ede8',
       colorLight: '#0a0505',
       correctLevel: QRCode.CorrectLevel.M
