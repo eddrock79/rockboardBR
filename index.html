@@ -428,28 +428,50 @@ document.title = CONFIG.venueName + ' · Request a Track';
   const params       = new URLSearchParams(window.location.search);
   const urlToken     = params.get('s');
 
-  // If a token is in the URL, store it (this is a fresh scan)
+  // Fresh QR scan — validate against Firebase first, then store if valid.
+  // This ensures re-scanning the QR always works, even after session expiry.
   if (urlToken) {
-    localStorage.setItem(SESSION_KEY, urlToken);
-    // Clean the token from the URL bar without reloading
-    window.history.replaceState({}, '', window.location.pathname);
+    try {
+      const snap = await getDoc(doc(db, C_SETTINGS, 'session'));
+      if (snap.exists()) {
+        const { token, expiry } = snap.data();
+        if (urlToken === token && Date.now() <= expiry) {
+          // Valid fresh scan — store and allow in
+          localStorage.setItem(SESSION_KEY, urlToken);
+          window.history.replaceState({}, '', window.location.pathname);
+          return; // ✅ good to go
+        }
+      }
+    } catch(e) {
+      // Firebase blip — store token and let them through rather than blocking
+      console.warn('Session check failed on fresh scan, allowing through', e);
+      localStorage.setItem(SESSION_KEY, urlToken);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    // Token in URL didn't match Firebase — QR is stale, redirect
+    window.location.replace(REDIRECT_URL);
+    return;
   }
 
+  // No token in URL — check stored token from a previous scan
   const storedToken = localStorage.getItem(SESSION_KEY);
   if (!storedToken) {
     window.location.replace(REDIRECT_URL);
     return;
   }
 
-  // Validate token against Firebase
+  // Validate stored token against Firebase
   try {
     const snap = await getDoc(doc(db, C_SETTINGS, 'session'));
     if (!snap.exists()) { window.location.replace(REDIRECT_URL); return; }
     const { token, expiry } = snap.data();
     if (storedToken !== token || Date.now() > expiry) {
+      // Session expired — clear stored token and redirect
       localStorage.removeItem(SESSION_KEY);
       window.location.replace(REDIRECT_URL);
     }
+    // else: stored token still valid, allow through
   } catch(e) {
     // Firebase read failed — fail open so a network blip doesn't lock everyone out
     console.warn('Session check failed, allowing through', e);
