@@ -830,6 +830,11 @@ const C_TRACKS   = 'br_tracks';
 const C_PLAYED   = 'br_played';
 const C_SETTINGS = 'br_settings';
 const C_ALLTIME  = 'br_alltime';
+// Minimum minutes between auto-queue rounds — must match staff.html's
+// MIN_AUTOQUEUE_MINS. Enforced here too since this file reads
+// autoQueueMins straight from Firestore, which could still hold an old
+// sub-minimum value from before this limit existed.
+const MIN_AUTOQUEUE_MINS = 5;
 
 // ── START SESSION (QR token) once Firebase is ready ──
 initSession();
@@ -838,7 +843,7 @@ const statusEl = document.getElementById('firebase-status');
 
 // ── LISTEN TO SETTINGS (tshirt toggle from staff page) ──
 let countdownTimer = null;
-let totalQueueMs = 2 * 60 * 1000;
+let totalQueueMs = MIN_AUTOQUEUE_MINS * 60 * 1000;
 
 onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
   if (!snap.exists()) return;
@@ -861,7 +866,7 @@ onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
   }
 
   // Start/stop auto-queue engine
-  const mins = data.autoQueueMins || 2;
+  const mins = Math.max(MIN_AUTOQUEUE_MINS, data.autoQueueMins || MIN_AUTOQUEUE_MINS);
   if (data.autoQueue && !boardAutoQueueOn) {
     boardAutoQueueOn   = true;
     boardAutoQueueMins = mins;
@@ -883,7 +888,7 @@ onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
   // Countdown timer
   const countdown = document.getElementById('queue-countdown');
   if (data.autoQueue && data.nextQueueAt) {
-    totalQueueMs = (data.autoQueueMins || 2) * 60 * 1000;
+    totalQueueMs = Math.max(MIN_AUTOQUEUE_MINS, data.autoQueueMins || MIN_AUTOQUEUE_MINS) * 60 * 1000;
     countdown.classList.add('show');
     clearInterval(countdownTimer);
     countdownTimer = setInterval(() => {
@@ -918,7 +923,7 @@ onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
 // Driven by nextQueueAt in Firebase — single source of truth, no duplicate firing
 let boardTracks        = [];
 let boardAutoQueueOn   = false;
-let boardAutoQueueMins = 2;
+let boardAutoQueueMins = MIN_AUTOQUEUE_MINS;
 let boardQueueChecker  = null;  // polls every 10s to check if nextQueueAt has passed
 let boardFiring        = false; // prevents concurrent runs
 
@@ -949,6 +954,24 @@ function cleanT(t) {
           .trim() || t.trim();
 }
 
+// Always writes a fresh nextQueueAt, whether or not this round actually
+// found and queued a track. Previously, every early-return path in
+// boardRunAutoQueue() below (no approved tracks, no eligible track, Spotify
+// search failed, Spotify queue call failed) skipped this — leaving
+// nextQueueAt stuck in the past. The countdown would then sit frozen at
+// 00:00 and the checker would stop re-firing entirely, since it only
+// re-triggers when nextQueueAt_local is set. Nothing restarted it until
+// staff manually touched the interval control again.
+async function scheduleNextAutoQueue() {
+  const nextAt = Date.now() + (boardAutoQueueMins * 60 * 1000);
+  nextQueueAt_local = nextAt;
+  try {
+    await updateDoc(doc(db,C_SETTINGS,'venue'), { nextQueueAt: nextAt });
+  } catch(e) {
+    console.warn('Failed to schedule next auto-queue round', e);
+  }
+}
+
 async function boardRunAutoQueue() {
   if (boardFiring) return; // prevent concurrent runs
   boardFiring = true;
@@ -959,13 +982,13 @@ async function boardRunAutoQueue() {
       .filter(t => t.approved && !t.spotifyQueued)
       .sort((a,b) => b.uniqueVoters - a.uniqueVoters || (a.addedAt||0) - (b.addedAt||0));
 
-    if (!approved.length) { boardFiring = false; return; }
+    if (!approved.length) { await scheduleNextAutoQueue(); boardFiring = false; return; }
 
     // Pick top track not played in last hour
     const top = approved.find(t =>
       !recentlyPlayed.includes((t.title+'|||'+t.artist).toLowerCase())
     );
-    if (!top) { boardFiring = false; return; }
+    if (!top) { await scheduleNextAutoQueue(); boardFiring = false; return; }
 
     // Search Spotify with fallbacks
     const ct = cleanT(top.title);
@@ -975,7 +998,7 @@ async function boardRunAutoQueue() {
       found = await boardSpotifyCall('/search?track='+encodeURIComponent(t)+(a?'&artist='+encodeURIComponent(a):''));
       if (found?.uri) break;
     }
-    if (!found?.uri) { boardFiring = false; return; }
+    if (!found?.uri) { await scheduleNextAutoQueue(); boardFiring = false; return; }
 
     // Queue it
     const result = await boardSpotifyCall('/queue', 'POST', { uri:found.uri });
@@ -985,10 +1008,8 @@ async function boardRunAutoQueue() {
         spotifyQueued:true, spotifyUri:found.uri, queuedAt:Date.now()
       });
       // Set next queue time — exactly N minutes from NOW
-      const nextAt = Date.now() + (boardAutoQueueMins * 60 * 1000);
-      nextQueueAt_local = nextAt; // update local mirror immediately
-      await updateDoc(doc(db,C_SETTINGS,'venue'), { nextQueueAt: nextAt });
-      console.log(`✅ Queued: ${top.title} | Next queue at: ${new Date(nextAt).toLocaleTimeString()}`);
+      await scheduleNextAutoQueue();
+      console.log(`✅ Queued: ${top.title} | Next queue at: ${new Date(nextQueueAt_local).toLocaleTimeString()}`);
 
       // Auto-remove from board after 30 seconds
       setTimeout(async () => {
@@ -1003,8 +1024,18 @@ async function boardRunAutoQueue() {
           loadAllTimeTop10();
         } catch(e) {}
       }, 30000);
+    } else {
+      // Spotify /queue call itself failed (bad response, expired token,
+      // etc.) — still restart the timer so the next round can try again
+      // rather than leaving the countdown stuck.
+      await scheduleNextAutoQueue();
     }
-  } catch(e) { console.warn('Auto-queue error', e); }
+  } catch(e) {
+    console.warn('Auto-queue error', e);
+    // Even on an unexpected error, don't leave the timer stuck — restart it
+    // so the board keeps trying on the next round instead of freezing.
+    await scheduleNextAutoQueue();
+  }
   boardFiring = false;
 }
 
