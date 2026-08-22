@@ -187,7 +187,7 @@
     <button class="ctrl-btn auto-queue-btn" id="auto-queue-btn" onclick="toggleAutoQueue()" style="display:none">⏱ AUTO-QUEUE: OFF</button>
     <div id="interval-wrap" style="display:none;align-items:center;gap:6px">
       <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.4)">EVERY</span>
-      <input type="number" id="interval-input" min="1" max="60" value="2"
+      <input type="number" id="interval-input" min="5" max="60" value="5"
         style="width:52px;background:rgba(0,0,0,0.4);border:1px solid rgba(30,215,96,0.3);border-radius:4px;padding:8px 6px;color:#1ED760;font-family:var(--font-pixel);font-size:18px;letter-spacing:2px;text-align:center;outline:none;-webkit-appearance:none"
         onchange="updateInterval(this.value)">
       <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.4)">MINS</span>
@@ -275,7 +275,7 @@ const CONFIG = {
   staffPin:           "1234",
   tshirtMode:         true,
   spotify_worker_url:   "https://rockboard-br.eddrock79.workers.dev",
-  autoQueueMins:        2,    // ← change this to set voting time (minutes between auto-queues)
+  autoQueueMins:        5,    // ← change this to set voting time (minutes between auto-queues). 5 is the enforced minimum — see MIN_AUTOQUEUE_MINS below.
   firebase: {
     apiKey:            "AIzaSyCBV3mususv2A_ss0vEiUDxA6PBGCOLCgc",
     authDomain:        "rockboard-2b240.firebaseapp.com",
@@ -288,6 +288,10 @@ const CONFIG = {
 
 const fbApp = initializeApp(CONFIG.firebase);
 const db    = getFirestore(fbApp);
+// Minimum minutes between auto-queue rounds. Enforced everywhere the interval
+// is set or read, so it can't be dropped below this even by an old stored
+// value in Firestore from before this limit existed, or by editing it directly.
+const MIN_AUTOQUEUE_MINS = 5;
 // ── BR venue collection names ──
 const C_TRACKS   = 'br_tracks';
 const C_PLAYED   = 'br_played';
@@ -318,13 +322,15 @@ async function showApp() {
     document.getElementById('auto-queue-btn').style.display = '';
     document.getElementById('interval-wrap').style.display = 'flex';
     document.getElementById('offset-wrap').style.display = 'flex';
-    document.getElementById('interval-input').value = CONFIG.autoQueueMins || 2;
+    document.getElementById('interval-input').value = CONFIG.autoQueueMins || MIN_AUTOQUEUE_MINS;
     // Restore saved interval from Firebase
     try {
       const { getDoc: gd } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
       const snap = await gd(doc(db,C_SETTINGS,'venue'));
       if (snap.exists() && snap.data().autoQueueMins) {
-        const savedMins = snap.data().autoQueueMins;
+        // Clamp in case an old value below the minimum is still stored from
+        // before this limit was added.
+        const savedMins = Math.max(MIN_AUTOQUEUE_MINS, snap.data().autoQueueMins);
         document.getElementById('interval-input').value = savedMins;
         CONFIG.autoQueueMins = savedMins;
       }
@@ -676,7 +682,7 @@ function applyAutoQueueState(on) {
     const nextAt = Date.now() + 5000;
     updateDoc(doc(db,C_SETTINGS,'venue'), {
       autoQueue: true,
-      autoQueueMins: CONFIG.autoQueueMins || 2,
+      autoQueueMins: CONFIG.autoQueueMins || MIN_AUTOQUEUE_MINS,
       nextQueueAt: nextAt
     }).catch(()=>{});
   } else {
@@ -690,7 +696,7 @@ window._toggleAutoQueue = function() {
 };
 
 window._updateInterval = function(v) {
-  const m = Math.max(1, Math.min(60, parseInt(v) || 2));
+  const m = Math.max(MIN_AUTOQUEUE_MINS, Math.min(60, parseInt(v) || MIN_AUTOQUEUE_MINS));
   document.getElementById('interval-input').value = m;
   CONFIG.autoQueueMins = m;
   if (autoQueueOn) {
