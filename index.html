@@ -33,6 +33,43 @@
   .vl-num{font-size:32px;font-weight:900;color:var(--green);line-height:1;display:block;text-align:center}
   .vl-num.warn{color:var(--amber)}
   .vl-num.empty{color:#8b0000}
+  .get-more-btn{
+    margin-left:14px;font-size:11px;font-weight:800;letter-spacing:0.6px;
+    background:rgba(108,43,217,0.18);color:var(--pink);border:1px solid rgba(255,255,255,0.25);
+    border-radius:7px;padding:8px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    white-space:nowrap;
+  }
+  .get-more-btn:active{background:rgba(108,43,217,0.32)}
+  .get-more-btn:disabled{opacity:0.5;cursor:default}
+  .purchase-toast{
+    position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:500;
+    background:rgba(20,20,22,0.97);border:1px solid rgba(108,43,217,0.4);border-radius:10px;
+    padding:12px 18px;font-size:13px;font-weight:600;text-align:center;max-width:88%;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  }
+  .topup-modal{
+    position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.7);
+    display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);
+  }
+  .topup-sheet{
+    background:var(--surface);border:1px solid rgba(108,43,217,0.3);border-radius:16px 16px 0 0;
+    padding:22px 20px 28px;width:100%;max-width:480px;
+  }
+  .topup-title{font-family:var(--font-alt);font-size:16px;font-weight:800;letter-spacing:1px}
+  .topup-sub{font-size:12px;color:var(--grey);margin-top:4px;margin-bottom:18px}
+  .topup-tier{
+    display:flex;justify-content:space-between;align-items:center;width:100%;
+    background:var(--surface2);border:1px solid rgba(255,255,255,0.08);border-radius:12px;
+    padding:14px 16px;margin-bottom:10px;cursor:pointer;color:var(--white);
+    -webkit-tap-highlight-color:transparent;text-align:left;
+  }
+  .topup-tier:active{background:var(--surface3)}
+  .topup-tier .tt-price{font-family:var(--font-alt);font-size:22px;font-weight:800;color:var(--pink);min-width:44px}
+  .topup-tier .tt-grant{font-size:13px;color:var(--light);font-weight:600}
+  .topup-close{
+    width:100%;background:none;border:1px solid rgba(255,255,255,0.12);color:var(--grey);
+    border-radius:12px;padding:12px;font-size:14px;font-weight:700;margin-top:4px;cursor:pointer;
+  }
 
   /* ── BACK TO MENU BANNER — only shown when linked from the ordering app ── */
   #back-to-menu-banner{
@@ -118,7 +155,7 @@
   .inp-wrap{position:relative}
   .inp-wrap input{
     width:100%;background:var(--surface2);
-    border:none;
+    border:1px solid rgba(255,255,255,0.25);
     border-radius:14px;padding:17px 44px 17px 20px;
     color:var(--white);font-family:var(--font);font-size:16px;font-weight:500;
     outline:none;transition:all 0.2s;-webkit-appearance:none;
@@ -175,7 +212,7 @@
   .name-field label{display:block;font-size:13px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
   .name-field input{
     width:100%;background:var(--surface2);
-    border:none;border-radius:14px;
+    border:1px solid rgba(255,255,255,0.25);border-radius:14px;
     padding:17px 20px;color:var(--white);font-family:var(--font);
     font-size:16px;font-weight:500;outline:none;-webkit-appearance:none;transition:all 0.2s;
     -webkit-text-fill-color:var(--white);
@@ -260,13 +297,25 @@
   <div id="votes-left-badge">
     <div class="counter-item">
       <div class="vl-label">REQUESTS LEFT</div>
-      <span class="vl-num" id="reqs-left-num">6</span>
+      <span class="vl-num" id="reqs-left-num">1</span>
     </div>
     <div class="counter-divider"></div>
     <div class="counter-item">
       <div class="vl-label">VOTES LEFT</div>
-      <span class="vl-num" id="votes-left-num">13</span>
+      <span class="vl-num" id="votes-left-num">2</span>
     </div>
+    <button class="get-more-btn" onclick="openTopUpModal()">GET MORE</button>
+  </div>
+</div>
+
+<div id="purchase-toast" class="purchase-toast" style="display:none"></div>
+
+<div id="topup-modal" class="topup-modal" style="display:none">
+  <div class="topup-sheet">
+    <div class="topup-title">GET MORE REQUESTS &amp; VOTES</div>
+    <div class="topup-sub">Pick a top-up — added to what you already have</div>
+    <div id="topup-tiers"></div>
+    <button class="topup-close" onclick="closeTopUpModal()">Cancel</button>
   </div>
 </div>
 
@@ -400,6 +449,7 @@
 
 <div class="section" style="margin-top:24px;">
   <div class="section-title">Vote for the next track 🤘</div>
+  <div style="font-size:11px;color:var(--grey);margin:-8px 0 12px;letter-spacing:0.3px">Your free vote counts once — purchased votes count double 🤘</div>
   <div id="vote-list">
     <div id="empty-board">NO TRACKS YET TONIGHT<br>BE THE FIRST TO REQUEST ONE<br>🎸</div>
   </div>
@@ -421,6 +471,9 @@ function resetSong()       { window.resetSong      && window.resetSong();       
 function submitRequest()   { window.submitRequest  && window.submitRequest();   }
 function voteFor(id)       { window.voteFor        && window.voteFor(id);       }
 function outsideTap(e)     { window.outsideTap     && window.outsideTap(e);     }
+function openTopUpModal()  { window.openTopUpModal && window.openTopUpModal();  }
+function closeTopUpModal() { window.closeTopUpModal && window.closeTopUpModal();}
+function buyTier(id)       { window.buyTier        && window.buyTier(id);       }
 </script>
 
 <script type="module">
@@ -430,8 +483,21 @@ import { getFirestore, collection, onSnapshot, query, orderBy, doc, addDoc, upda
 // ── CONFIG ──
 const CONFIG = {
   venueName:          "THE BLACK ROSE",
-  maxRequestsPerHour: 6,
-  maxVotesPerHour:    13,
+  maxRequestsPerHour: 1,
+  // Free votes are worth 1 point each. Once someone's used their free
+  // vote(s), any further vote they cast draws from a purchased "double
+  // vote" pool instead — worth 2 points. See voteFor() below for exactly
+  // where that split happens.
+  maxVotesPerHour:    2,
+  // Display only — the Worker holds the real prices/grants server-side
+  // and is the only thing that decides what a purchase actually credits.
+  // Keep this in sync with TOPUP_TIERS in cloudflare-worker.js so the
+  // sheet shown to guests matches what they actually get.
+  topUpTiers: [
+    { id: 'tier1', priceLabel: '£1', extraRequests: 3,  extraVotes: 4  },
+    { id: 'tier2', priceLabel: '£2', extraRequests: 7,  extraVotes: 8  },
+    { id: 'tier3', priceLabel: '£3', extraRequests: 11, extraVotes: 12 },
+  ],
   spotify_worker_url: "https://rockboard-br.eddrock79.workers.dev",
   youtube_key:        "AIzaSyC88WDG2bnABTur-Nup7E2uDE9af-RHu1E",
   lastfm_user:        "eddrock79",
@@ -620,19 +686,100 @@ function getDeviceId() {
 }
 const DEVICE_ID = getDeviceId();
 
+// ── ENTITLEMENTS (paid top-ups) ──
+// Source of truth lives server-side in Firestore (br_entitlements/{device}),
+// written only by the Cloudflare Worker after a Stripe webhook confirms
+// payment. The client only ever *reads* this — it never trusts a local
+// value for "have I paid", since localStorage is trivially editable.
+let ENTITLEMENT = { extraVotes: 0, extraRequests: 0 };
+
+async function refreshEntitlement() {
+  try {
+    const res = await fetch(`${CONFIG.spotify_worker_url}/entitlement?device_id=${encodeURIComponent(DEVICE_ID)}`);
+    if (res.ok) ENTITLEMENT = await res.json();
+  } catch (e) { console.warn('Entitlement fetch failed', e); }
+  updateBadge();
+}
+
+function openTopUpModal() {
+  const list = document.getElementById('topup-tiers');
+  list.innerHTML = CONFIG.topUpTiers.map(t => `
+    <button class="topup-tier" onclick="buyTier('${t.id}')">
+      <span class="tt-price">${t.priceLabel}</span>
+      <span class="tt-grant">+${t.extraRequests} requests<br>+${t.extraVotes} double votes</span>
+    </button>
+  `).join('');
+  document.getElementById('topup-modal').style.display = 'flex';
+}
+function closeTopUpModal() {
+  document.getElementById('topup-modal').style.display = 'none';
+}
+window.openTopUpModal = openTopUpModal;
+window.closeTopUpModal = closeTopUpModal;
+
+async function buyTier(tierId) {
+  const tierBtns = document.querySelectorAll('.topup-tier');
+  tierBtns.forEach(b => b.disabled = true);
+  try {
+    const res = await fetch(`${CONFIG.spotify_worker_url}/create-checkout-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Only device_id + tier id are sent — the Worker looks up the real
+      // price and grant amounts itself, so nothing the client sends can
+      // change what a purchase is worth.
+      body: JSON.stringify({ device_id: DEVICE_ID, tier: tierId })
+    });
+    const data = await res.json();
+    if (data.url) { window.location.href = data.url; return; }
+    showPurchaseToast('Could not start checkout — try again in a moment.');
+  } catch (e) {
+    showPurchaseToast('Could not start checkout — check your connection.');
+  }
+  tierBtns.forEach(b => b.disabled = false);
+}
+window.buyTier = buyTier;
+
+function showPurchaseToast(msg) {
+  const el = document.getElementById('purchase-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// Handle the redirect back from Stripe Checkout (?paid=1&session_id=...)
+(async function handleCheckoutReturn(){
+  const u = new URL(window.location.href);
+  if (u.searchParams.get('paid') !== '1') return;
+  const sessionId = u.searchParams.get('session_id') || '';
+  u.searchParams.delete('paid'); u.searchParams.delete('session_id');
+  window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+  showPurchaseToast('Payment received — adding your top-up…');
+  // The webhook usually beats the redirect back, but poll briefly in case
+  // it hasn't landed yet.
+  for (let i = 0; i < 5; i++) {
+    await refreshEntitlement();
+    if (ENTITLEMENT.extraVotes > 0 || ENTITLEMENT.extraRequests > 0) break;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  showPurchaseToast("You're topped up 🤘");
+})();
+
 // ── RATE LIMITING ──
 function getBucket(key) {
   try { const d = JSON.parse(localStorage.getItem(key)||'null') || {count:0,windowStart:Date.now(),used:{}}; return Date.now()-d.windowStart>3600000 ? {count:0,windowStart:Date.now(),used:{}} : d; }
   catch(e) { return {count:0,windowStart:Date.now(),used:{}}; }
 }
 function saveBucket(k,d) { try{localStorage.setItem(k,JSON.stringify(d))}catch(e){} }
-function canRequest()  { return getBucket('rb_req').count  < CONFIG.maxRequestsPerHour; }
-function canVote(id)   { const d=getBucket('rb_vote'); return d.count<CONFIG.maxVotesPerHour && !d.used[id]; }
+function requestLimit() { return CONFIG.maxRequestsPerHour + (ENTITLEMENT.extraRequests || 0); }
+function voteLimit()    { return CONFIG.maxVotesPerHour    + (ENTITLEMENT.extraVotes    || 0); }
+function canRequest()  { return getBucket('rb_req').count  < requestLimit(); }
+function canVote(id)   { const d=getBucket('rb_vote'); return d.count<voteLimit() && !d.used[id]; }
 function useRequest()  { const d=getBucket('rb_req');  d.count++; saveBucket('rb_req',d); }
 function useVote(id)   { const d=getBucket('rb_vote'); d.count++; d.used[id]=true; saveBucket('rb_vote',d); }
 function hasVoted(id)  { return !!getBucket('rb_vote').used[id]; }
-function votesLeft()   { return Math.max(0, CONFIG.maxVotesPerHour - getBucket('rb_vote').count); }
-function reqLeft()     { return Math.max(0, CONFIG.maxRequestsPerHour - getBucket('rb_req').count); }
+function votesLeft()   { return Math.max(0, voteLimit()    - getBucket('rb_vote').count); }
+function reqLeft()     { return Math.max(0, requestLimit() - getBucket('rb_req').count); }
 
 function updateBadge() {
   const vl = votesLeft();
@@ -896,13 +1043,24 @@ window.submitRequest = async function() {
 };
 
 // ── VOTE ──
+// Free votes score 1 point. Once a device has used up its free
+// maxVotesPerHour allowance, any further vote it casts is drawn from a
+// purchased "double vote" pool instead, and scores 2 points — same as if
+// two people had voted. getBucket('rb_vote').count is how many votes this
+// device has already cast in the current hour, BEFORE this one — so if
+// that's still under the free limit, this cast is free (weight 1);
+// once it's at or past the free limit, it must be coming from purchased
+// entitlement (weight 2). Free votes are always spent first.
 window.voteFor = async function(id) {
   if (hasVoted(id))  { showToast('ALREADY VOTED FOR THIS ONE'); return; }
   if (!canVote(id))  { showToast("YOU'VE USED ALL YOUR VOTES"); updateBadge(); return; }
+  const alreadyCast = getBucket('rb_vote').count;
+  const isDoubleVote = alreadyCast >= CONFIG.maxVotesPerHour;
+  const weight = isDoubleVote ? 2 : 1;
   useVote(id);
   try {
-    await updateDoc(doc(db,C_TRACKS,id), { votes:increment(1), uniqueVoters:increment(1), voters:arrayUnion(DEVICE_ID) });
-    showToast('🤘 VOTE CAST!');
+    await updateDoc(doc(db,C_TRACKS,id), { votes:increment(weight), uniqueVoters:increment(weight), voters:arrayUnion(DEVICE_ID) });
+    showToast(isDoubleVote ? '🤘 DOUBLE VOTE CAST!' : '🤘 VOTE CAST!');
   } catch(e) { showToast('ERROR · TRY AGAIN'); }
   updateBadge();
 };
@@ -1040,6 +1198,7 @@ let tt;
 function showToast(t) { const el=document.getElementById('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),2500); }
 
 updateBadge();
+refreshEntitlement();
 </script>
 </body>
 </html>
