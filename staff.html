@@ -206,6 +206,7 @@
     <div class="tab active" id="tab-pending" onclick="switchTab('pending')">PENDING <span class="badge" id="pending-badge" style="display:none">0</span></div>
     <div class="tab" id="tab-approved" onclick="switchTab('approved')">APPROVED</div>
     <div class="tab" id="tab-played" onclick="switchTab('played')">PLAYED</div>
+    <div class="tab" id="tab-browse" onclick="switchTab('browse')">📖 BROWSE</div>
     <div class="tab" id="tab-banned" onclick="switchTab('banned')" style="color:rgba(255,80,80,0.6)">🚫 BANNED <span id="banned-count-num" style="color:rgba(255,80,80,0.8)">0</span></div>
   </div>
   <div class="list-section show" id="section-pending">
@@ -220,6 +221,21 @@
     <div id="approved-list"></div>
   </div>
 </div>
+
+  <div class="list-section" id="section-browse">
+    <div class="list-label"><span id="browse-count">0</span> BANDS ON THE BROWSE LIST</div>
+    <div style="padding:0 24px 16px;font-family:var(--font-pixel);font-size:16px;letter-spacing:1px;color:rgba(240,237,232,0.5)">Add a band, or tap ✕ to remove one. Changes save straight away.</div>
+    <div style="padding:0 24px 16px;display:flex;gap:8px">
+      <input id="browse-add-inp" type="text" placeholder="Band name…" style="flex:1;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:16px" onkeydown="if(event.key==='Enter')browseAdd()">
+      <button class="ctrl-btn winner-btn" onclick="browseAdd()">ADD</button>
+    </div>
+    <div style="padding:0 24px 16px">
+      <textarea id="browse-paste" placeholder="Or paste many bands here, one per line" style="width:100%;height:80px;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:15px"></textarea>
+      <button class="ctrl-btn approve-btn on" style="margin-top:8px" onclick="browsePaste()">ADD PASTED BANDS</button>
+    </div>
+    <div id="browse-msg" style="padding:0 24px 8px;font-family:var(--font-pixel);font-size:16px;letter-spacing:2px;color:var(--green);min-height:22px"></div>
+    <div id="browse-list" style="padding:0 24px 40px"></div>
+  </div>
 
   <div class="list-section" id="section-banned">
     <div class="list-label" style="color:rgba(255,80,80,0.6)">PERMANENTLY BANNED TRACKS · <span id="banned-count-num2">0</span> TOTAL</div>
@@ -242,6 +258,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="bands.js"></script>
 
 <!-- Global bridge — onclick handlers need these in window scope -->
 <script>
@@ -259,6 +276,9 @@ function unbanTrack(key)     { window._unbanTrack        && window._unbanTrack(k
 function updateVideoOffset(v){ window._updateVideoOffset && window._updateVideoOffset(v); }
 function approveAll()        { window._approveAll        && window._approveAll();        }
 function revealWinner()      { window._revealWinner      && window._revealWinner();      }
+function browseAdd()        { window._browseAdd        && window._browseAdd();        }
+function browsePaste()      { window._browsePaste      && window._browsePaste();      }
+function browseDel(i)       { window._browseDel        && window._browseDel(i);       }
 function clearNight()        { window._clearNight        && window._clearNight();        }
 function switchTab(t)        { window._switchTab         && window._switchTab(t);        }
 function keepTrack(id)       { window._keepTrack         && window._keepTrack(id);       }
@@ -268,7 +288,7 @@ function markPlayed(id)      { window._markPlayed        && window._markPlayed(i
 
 <script type="module">
 import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const CONFIG = {
   venueName:          "THE BLACK ROSE",
@@ -523,9 +543,58 @@ window._clearNight = async function() {
   } catch(e) { alert('Error clearing — check console'); console.error(e); }
 };
 
+// ── BROWSE LIST (stored in Firebase br_settings/browse; bands.js list is the starting copy) ──
+let browseBands = null;
+const bKeyS = n => n.replace(/^the\s+/i,'').trim();
+async function loadBrowse() {
+  if (browseBands) { paintBrowseS(); return; }
+  try {
+    const snap = await getDoc(doc(db, C_SETTINGS, 'browse'));
+    browseBands = (snap.exists() && Array.isArray(snap.data().bands)) ? snap.data().bands : (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : []);
+  } catch(e) { console.error(e); browseBands = (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : []); }
+  paintBrowseS();
+}
+function browseSay(t, bad) { const m = document.getElementById('browse-msg'); m.style.color = bad ? '#ff6666' : 'var(--green)'; m.textContent = t; setTimeout(() => { if (m.textContent === t) m.textContent = ''; }, 3500); }
+async function saveBrowse(msg) {
+  try { await setDoc(doc(db, C_SETTINGS, 'browse'), { bands: browseBands, updatedAt: Date.now() }); browseSay(msg); }
+  catch(e) { console.error(e); browseSay('NOT SAVED · CHECK CONNECTION', true); }
+}
+function paintBrowseS() {
+  document.getElementById('browse-count').textContent = browseBands.length;
+  const rows = browseBands.map((n, i) => ({ n, i })).sort((a, b) => bKeyS(a.n).localeCompare(bKeyS(b.n), 'en', { sensitivity: 'base' }));
+  document.getElementById('browse-list').innerHTML = rows.map(r =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;margin-bottom:6px;background:var(--card);border:1px solid rgba(139,0,0,0.25);border-radius:6px"><span style="font-size:16px">${r.n.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span><button class="ctrl-btn clear-btn" style="padding:6px 14px" onclick="browseDel(${r.i})">✕</button></div>`).join('');
+}
+function addBands(list) {
+  const have = new Set(browseBands.map(x => x.toLowerCase()));
+  let added = 0;
+  for (let n of list) { n = n.trim().slice(0, 80); if (n.length < 2 || have.has(n.toLowerCase())) continue; have.add(n.toLowerCase()); browseBands.push(n); added++; }
+  return added;
+}
+window._browseAdd = async () => {
+  await loadBrowse();
+  const inp = document.getElementById('browse-add-inp');
+  const n = addBands([inp.value]); inp.value = '';
+  if (!n) { browseSay('ALREADY THERE OR EMPTY', true); return; }
+  paintBrowseS(); await saveBrowse('ADDED');
+};
+window._browsePaste = async () => {
+  await loadBrowse();
+  const ta = document.getElementById('browse-paste');
+  const n = addBands(ta.value.split(/\r?\n/)); ta.value = '';
+  if (!n) { browseSay('NOTHING NEW TO ADD', true); return; }
+  paintBrowseS(); await saveBrowse(n + ' ADDED');
+};
+window._browseDel = async (i) => {
+  await loadBrowse();
+  const n = browseBands[i]; if (n === undefined) return;
+  browseBands.splice(i, 1);
+  paintBrowseS(); await saveBrowse('REMOVED ' + n.toUpperCase());
+};
+
 // ── TABS ──
 window._switchTab = function(tab) {
-  ['pending','approved','played','banned'].forEach(t => {
+  ['pending','approved','played','banned','browse'].forEach(t => {
     const tabEl = document.getElementById('tab-'+t);
     const secEl = document.getElementById('section-'+t);
     if (tabEl) tabEl.classList.toggle('active', tab===t);
@@ -533,6 +602,7 @@ window._switchTab = function(tab) {
   });
   if (tab === 'played') renderPlayedHistory();
   if (tab === 'banned') renderBanned();
+  if (tab === 'browse') loadBrowse();
 };
 
 async function renderPlayedHistory() {

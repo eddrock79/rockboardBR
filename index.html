@@ -139,6 +139,17 @@
     box-shadow:0 4px 16px rgba(108,43,217,0.35);
   }
 
+
+  /* ── BROWSE ── */
+  #browse-mode{display:none}
+  #bz-letters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .bz-l{min-width:36px;padding:9px 0;text-align:center;border-radius:10px;border:none;background:var(--bg,#111);color:var(--white);font-family:var(--font);font-weight:700;font-size:14px;cursor:pointer;-webkit-appearance:none}
+  .bz-l.on{background:var(--pink);box-shadow:0 3px 12px rgba(108,43,217,0.35)}
+  .bz-l:disabled{opacity:.25}
+  .bz-band{display:block;width:100%;text-align:left;padding:14px 16px;margin-bottom:8px;border:none;border-radius:12px;background:rgba(255,255,255,0.06);color:var(--white);font-family:var(--font);font-size:16px;font-weight:600;cursor:pointer;-webkit-appearance:none}
+  .bz-band:active{background:rgba(108,43,217,0.45)}
+  .bz-hint{font-size:13px;color:var(--grey);margin-bottom:12px}
+
   /* ── FORM CARD ── */
   #request-form{
     background:var(--surface);
@@ -345,11 +356,19 @@
   <div class="section-title">Request a track</div>
 
   <div id="search-mode">
+    <button class="mode-btn" id="mode-browse-btn" onclick="setMode('browse')" style="display:none">📖 Browse</button>
     <button class="mode-btn active" id="mode-artist-btn" onclick="setMode('artist')">🎸 By Artist</button>
     <button class="mode-btn"        id="mode-song-btn"   onclick="setMode('song')">🎵 By Song</button>
   </div>
 
   <div id="request-form">
+
+    <!-- ══ BROWSE MODE ══ -->
+    <div id="browse-mode">
+      <div class="bz-hint">Pick a letter, then tap a band to see their tracks.</div>
+      <div id="bz-letters"></div>
+      <div id="bz-list"></div>
+    </div>
 
     <!-- ══ ARTIST MODE ══ -->
     <div id="artist-mode">
@@ -461,6 +480,7 @@
 <div id="toast"></div>
 
 <script src="config.js"></script>
+<script src="bands.js"></script>
 
 <!-- Global bridge - onclick handlers need global scope, ES modules are isolated -->
 <script>
@@ -810,16 +830,38 @@ function startCountdown(ws) {
 }
 
 // ── MODE ──
-let mode = 'artist'; // 'artist' | 'song'
+let mode = 'artist'; // 'browse' | 'artist' | 'song'
 
 window.setMode = function(m) {
   mode = m;
+  document.getElementById('mode-browse-btn').classList.toggle('active', m==='browse');
   document.getElementById('mode-artist-btn').classList.toggle('active', m==='artist');
   document.getElementById('mode-song-btn').classList.toggle('active',   m==='song');
+  document.getElementById('browse-mode').style.display = m==='browse' ? 'block' : 'none';
   document.getElementById('artist-mode').style.display = m==='artist' ? '' : 'none';
   document.getElementById('song-mode').style.display   = m==='song'   ? '' : 'none';
   resetAll();
 };
+
+// ── BROWSE (band list: staff-editable in Firebase br_settings/browse, falls back to config.js) ──
+let browseBands = (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : []);
+let browseLetter = '';
+const bzKey  = n => n.replace(/^the\s+/i,'').trim();
+const bzInit = n => { const c = (bzKey(n)[0] || '#').toUpperCase(); return /[A-Z]/.test(c) ? c : '#'; };
+function paintBrowse() {
+  const btn = document.getElementById('mode-browse-btn');
+  const list = [...new Set(browseBands.map(x => String(x).trim()).filter(Boolean))];
+  btn.style.display = list.length ? '' : 'none';
+  if (!list.length) { if (mode === 'browse') setMode('artist'); return; }
+  const letters = [...new Set(list.map(bzInit))].sort((a,b) => a==='#' ? 1 : b==='#' ? -1 : a.localeCompare(b));
+  if (!letters.includes(browseLetter)) browseLetter = letters[0];
+  document.getElementById('bz-letters').innerHTML = letters.map(l =>
+    `<button class="bz-l${l===browseLetter?' on':''}" onclick="bzLetter('${l}')">${l}</button>`).join('');
+  const rows = list.filter(n => bzInit(n) === browseLetter).sort((a,b) => bzKey(a).localeCompare(bzKey(b), 'en', {sensitivity:'base'}));
+  const bl = document.getElementById('bz-list'); bl.innerHTML = '';
+  rows.forEach(n => { const b = document.createElement('button'); b.className = 'bz-band'; b.textContent = n; b.onclick = () => { setMode('artist'); pickArtist(n); window.scrollTo({top: document.getElementById('request-form').offsetTop - 80, behavior:'smooth'}); }; bl.appendChild(b); });
+}
+window.bzLetter = l => { browseLetter = l; paintBrowse(); };
 
 // ── STATE ──
 let chosenArtist = '';   // confirmed artist name
@@ -1092,6 +1134,17 @@ onSnapshot(lq, snap => {
     </div>`;
   }).join('');
 });
+
+// ── BROWSE LIST from Firebase (staff edit it); bands.js list is the fallback ──
+let browseFirst = true;
+function browseShown() {
+  paintBrowse();
+  if (browseFirst && browseBands.length) { browseFirst = false; if (mode === 'artist' && !chosenArtist) setMode('browse'); }
+}
+onSnapshot(doc(db,C_SETTINGS,'browse'), snap => {
+  if (snap.exists() && Array.isArray(snap.data().bands)) browseBands = snap.data().bands;
+  browseShown();
+}, () => browseShown());
 
 // ── VOTE COUNTDOWN ──
 let reqCountdownTimer = null;
