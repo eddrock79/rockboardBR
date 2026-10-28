@@ -229,8 +229,9 @@
       <input id="browse-add-inp" type="text" placeholder="Band name…" style="flex:1;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:16px" onkeydown="if(event.key==='Enter')browseAdd()">
       <button class="ctrl-btn winner-btn" onclick="browseAdd()">ADD</button>
     </div>
+    <div style="padding:0 24px 16px"><input id="browse-img" type="text" placeholder="Picture link (optional, https://…)" style="width:100%;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:15px"></div>
     <div style="padding:0 24px 16px">
-      <textarea id="browse-paste" placeholder="Or paste many bands here, one per line" style="width:100%;height:80px;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:15px"></textarea>
+      <textarea id="browse-paste" placeholder="Or paste many bands, one per line (name | picture link)" style="width:100%;height:80px;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:15px"></textarea>
       <button class="ctrl-btn approve-btn on" style="margin-top:8px" onclick="browsePaste()">ADD PASTED BANDS</button>
     </div>
     <div id="browse-msg" style="padding:0 24px 8px;font-family:var(--font-pixel);font-size:16px;letter-spacing:2px;color:var(--green);min-height:22px"></div>
@@ -546,12 +547,14 @@ window._clearNight = async function() {
 // ── BROWSE LIST (stored in Firebase br_settings/browse; bands.js list is the starting copy) ──
 let browseBands = null;
 const bKeyS = n => n.replace(/^the\s+/i,'').trim();
+const normBand = x => typeof x === 'string' ? { name: x, image: '' } : { name: String(x.name || ''), image: String(x.image || '') };
+const escS = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 async function loadBrowse() {
   if (browseBands) { paintBrowseS(); return; }
   try {
     const snap = await getDoc(doc(db, C_SETTINGS, 'browse'));
-    browseBands = (snap.exists() && Array.isArray(snap.data().bands)) ? snap.data().bands : (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : []);
-  } catch(e) { console.error(e); browseBands = (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : []); }
+    browseBands = ((snap.exists() && Array.isArray(snap.data().bands)) ? snap.data().bands : (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : [])).map(normBand);
+  } catch(e) { console.error(e); browseBands = (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : []).map(normBand); }
   paintBrowseS();
 }
 function browseSay(t, bad) { const m = document.getElementById('browse-msg'); m.style.color = bad ? '#ff6666' : 'var(--green)'; m.textContent = t; setTimeout(() => { if (m.textContent === t) m.textContent = ''; }, 3500); }
@@ -561,20 +564,24 @@ async function saveBrowse(msg) {
 }
 function paintBrowseS() {
   document.getElementById('browse-count').textContent = browseBands.length;
-  const rows = browseBands.map((n, i) => ({ n, i })).sort((a, b) => bKeyS(a.n).localeCompare(bKeyS(b.n), 'en', { sensitivity: 'base' }));
+  const rows = browseBands.map((b, i) => ({ n: b.name, img: b.image, i })).sort((a, b) => bKeyS(a.n).localeCompare(bKeyS(b.n), 'en', { sensitivity: 'base' }));
   document.getElementById('browse-list').innerHTML = rows.map(r =>
-    `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;margin-bottom:6px;background:var(--card);border:1px solid rgba(139,0,0,0.25);border-radius:6px"><span style="font-size:16px">${r.n.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span><button class="ctrl-btn clear-btn" style="padding:6px 14px" onclick="browseDel(${r.i})">✕</button></div>`).join('');
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;margin-bottom:6px;background:var(--card);border:1px solid rgba(139,0,0,0.25);border-radius:6px"><span style="display:flex;align-items:center;gap:12px;font-size:16px">${r.img ? `<img src="${escS(r.img)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" onerror="this.style.visibility='hidden'">` : '<span style="width:36px;height:36px;border-radius:50%;background:#2a1a1a;display:inline-block"></span>'}${escS(r.n)}</span><button class="ctrl-btn clear-btn" style="padding:6px 14px" onclick="browseDel(${r.i})">✕</button></div>`).join('');
 }
 function addBands(list) {
-  const have = new Set(browseBands.map(x => x.toLowerCase()));
+  const have = new Set(browseBands.map(x => x.name.toLowerCase()));
   let added = 0;
-  for (let n of list) { n = n.trim().slice(0, 80); if (n.length < 2 || have.has(n.toLowerCase())) continue; have.add(n.toLowerCase()); browseBands.push(n); added++; }
+  for (const raw of list) {
+    const [nm, ...rest] = String(raw).split('|'); const n = nm.trim().slice(0, 80), img = rest.join('|').trim().slice(0, 400);
+    if (n.length < 2 || have.has(n.toLowerCase())) continue;
+    have.add(n.toLowerCase()); browseBands.push({ name: n, image: /^https:\/\//.test(img) ? img : '' }); added++;
+  }
   return added;
 }
 window._browseAdd = async () => {
   await loadBrowse();
   const inp = document.getElementById('browse-add-inp');
-  const n = addBands([inp.value]); inp.value = '';
+  const imgEl = document.getElementById('browse-img'); const n = addBands([inp.value + (imgEl.value ? ' | ' + imgEl.value : '')]); inp.value = ''; imgEl.value = '';
   if (!n) { browseSay('ALREADY THERE OR EMPTY', true); return; }
   paintBrowseS(); await saveBrowse('ADDED');
 };
@@ -587,7 +594,7 @@ window._browsePaste = async () => {
 };
 window._browseDel = async (i) => {
   await loadBrowse();
-  const n = browseBands[i]; if (n === undefined) return;
+  const n = (browseBands[i] || {}).name; if (n === undefined) return;
   browseBands.splice(i, 1);
   paintBrowseS(); await saveBrowse('REMOVED ' + n.toUpperCase());
 };

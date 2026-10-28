@@ -140,14 +140,23 @@
   }
 
 
-  /* ── BROWSE ── */
+  /* ── BROWSE (swipeable artwork) ── */
   #browse-mode{display:none}
-  #bz-letters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
-  .bz-l{min-width:36px;padding:9px 0;text-align:center;border-radius:10px;border:none;background:var(--bg,#111);color:var(--white);font-family:var(--font);font-weight:700;font-size:14px;cursor:pointer;-webkit-appearance:none}
+  #bz-letters{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+  #bz-letters::-webkit-scrollbar,#bz-car::-webkit-scrollbar{display:none}
+  .bz-l{flex:none;min-width:38px;height:38px;border-radius:10px;border:none;background:rgba(255,255,255,0.07);color:var(--white);font-family:var(--font);font-weight:700;font-size:15px;cursor:pointer;-webkit-appearance:none}
   .bz-l.on{background:var(--pink);box-shadow:0 3px 12px rgba(108,43,217,0.35)}
-  .bz-l:disabled{opacity:.25}
-  .bz-band{display:block;width:100%;text-align:left;padding:14px 16px;margin-bottom:8px;border:none;border-radius:12px;background:rgba(255,255,255,0.06);color:var(--white);font-family:var(--font);font-size:16px;font-weight:600;cursor:pointer;-webkit-appearance:none}
-  .bz-band:active{background:rgba(108,43,217,0.45)}
+  #bz-car{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 0 12px}
+  #bz-car.hold{scroll-snap-type:none;scroll-behavior:auto}
+  .bz-c{flex:0 0 calc((100% - 12px) / 2);min-width:0;scroll-snap-align:start;background:none;border:0;padding:0;text-align:left;color:var(--white);font-family:var(--font);cursor:pointer;-webkit-appearance:none}
+  .bz-c img,.bz-c .bz-ph{width:100%;aspect-ratio:1/1;border-radius:50%;object-fit:cover;display:block;background:#241a3a}
+  .bz-c .bz-ph{display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:800;color:rgba(255,255,255,0.55);background:linear-gradient(135deg,#3a2270,#1c1230)}
+  .bz-c .bz-t{margin-top:8px;font-weight:700;font-size:15px;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .bz-c .bz-s{font-size:12px;color:var(--grey)}
+  .bz-c:active img,.bz-c:active .bz-ph{opacity:.7}
+  #bz-nav{display:flex;gap:10px;margin:2px 0 4px}
+  #bz-nav button{flex:1;height:52px;border-radius:14px;border:none;background:rgba(255,255,255,0.08);color:var(--white);font-size:24px;font-weight:700;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-appearance:none}
+  #bz-nav button:active{background:var(--pink)}
   .bz-hint{font-size:13px;color:var(--grey);margin-bottom:12px}
 
   /* ── FORM CARD ── */
@@ -365,9 +374,10 @@
 
     <!-- ══ BROWSE MODE ══ -->
     <div id="browse-mode">
-      <div class="bz-hint">Pick a letter, then tap a band to see their tracks.</div>
+      <div class="bz-hint">Swipe to browse, or jump to a letter. Tap a band to see their tracks.</div>
       <div id="bz-letters"></div>
-      <div id="bz-list"></div>
+      <div id="bz-car"></div>
+      <div id="bz-nav"><button id="bz-prev" aria-label="Back (hold to scroll)">&#9664;</button><button id="bz-next" aria-label="Forward (hold to scroll)">&#9654;</button></div>
     </div>
 
     <!-- ══ ARTIST MODE ══ -->
@@ -843,25 +853,74 @@ window.setMode = function(m) {
   resetAll();
 };
 
-// ── BROWSE (band list: staff-editable in Firebase br_settings/browse, falls back to config.js) ──
+// ── BROWSE (band list: staff-editable in Firebase br_settings/browse, falls back to bands.js) ──
+// Entries are {name, image}; plain strings (no picture) are accepted too.
 let browseBands = (typeof BROWSE_DEFAULT !== 'undefined' ? [...BROWSE_DEFAULT] : []);
-let browseLetter = '';
+let browseCur = '', browseSig = '', bzRaf = 0;
 const bzKey  = n => n.replace(/^the\s+/i,'').trim();
 const bzInit = n => { const c = (bzKey(n)[0] || '#').toUpperCase(); return /[A-Z]/.test(c) ? c : '#'; };
+const bzEsc  = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+let bzItems = [];
 function paintBrowse() {
   const btn = document.getElementById('mode-browse-btn');
-  const list = [...new Set(browseBands.map(x => String(x).trim()).filter(Boolean))];
-  btn.style.display = list.length ? '' : 'none';
-  if (!list.length) { if (mode === 'browse') setMode('artist'); return; }
-  const letters = [...new Set(list.map(bzInit))].sort((a,b) => a==='#' ? 1 : b==='#' ? -1 : a.localeCompare(b));
-  if (!letters.includes(browseLetter)) browseLetter = letters[0];
-  document.getElementById('bz-letters').innerHTML = letters.map(l =>
-    `<button class="bz-l${l===browseLetter?' on':''}" onclick="bzLetter('${l}')">${l}</button>`).join('');
-  const rows = list.filter(n => bzInit(n) === browseLetter).sort((a,b) => bzKey(a).localeCompare(bzKey(b), 'en', {sensitivity:'base'}));
-  const bl = document.getElementById('bz-list'); bl.innerHTML = '';
-  rows.forEach(n => { const b = document.createElement('button'); b.className = 'bz-band'; b.textContent = n; b.onclick = () => { setMode('artist'); pickArtist(n); window.scrollTo({top: document.getElementById('request-form').offsetTop - 80, behavior:'smooth'}); }; bl.appendChild(b); });
+  const seen = new Set(); bzItems = [];
+  for (const x of browseBands) {
+    const o = typeof x === 'string' ? { name: x, image: '' } : { name: String(x.name || ''), image: String(x.image || '') };
+    o.name = o.name.trim(); if (!o.name || seen.has(o.name.toLowerCase())) continue;
+    seen.add(o.name.toLowerCase()); bzItems.push(o);
+  }
+  btn.style.display = bzItems.length ? '' : 'none';
+  if (!bzItems.length) { if (mode === 'browse') setMode('artist'); return; }
+  bzItems.sort((a,b) => bzKey(a.name).localeCompare(bzKey(b.name), 'en', {sensitivity:'base'}));
+  const sig = JSON.stringify(bzItems); if (sig === browseSig) return; browseSig = sig;
+  const letters = [...new Set(bzItems.map(x => bzInit(x.name)))].sort((a,b) => a==='#' ? 1 : b==='#' ? -1 : a.localeCompare(b));
+  if (!letters.includes(browseCur)) browseCur = letters[0];
+  document.getElementById('bz-letters').innerHTML = letters.map(l => `<button class="bz-l${l===browseCur?' on':''}" data-l="${l}">${l}</button>`).join('');
+  document.querySelectorAll('.bz-l').forEach(b => b.onclick = () => bzJump(b.dataset.l));
+  document.getElementById('bz-car').innerHTML = bzItems.map((x, i) =>
+    `<button class="bz-c" data-i="${i}" data-l="${bzInit(x.name)}">${x.image ? `<img src="${bzEsc(x.image)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;bz-ph&quot;>${bzEsc(bzInit(x.name))}</div>'">` : `<div class="bz-ph">${bzEsc(bzInit(x.name))}</div>`}<div class="bz-t">${bzEsc(x.name)}</div><div class="bz-s">tap to see tracks</div></button>`).join('');
 }
-window.bzLetter = l => { browseLetter = l; paintBrowse(); };
+function bzSetLetter(l) {
+  if (l === browseCur) return; browseCur = l;
+  document.querySelectorAll('.bz-l').forEach(b => b.classList.toggle('on', b.dataset.l === l));
+  const on = document.querySelector('.bz-l.on'), box = document.getElementById('bz-letters');
+  if (on) box.scrollLeft = Math.max(0, on.offsetLeft - 90);
+}
+function bzJump(l) {
+  const car = document.getElementById('bz-car'), c = car.querySelector(`.bz-c[data-l="${l}"]`); if (!c) return;
+  car.scrollTo({ left: c.offsetLeft - car.offsetLeft, behavior: 'smooth' }); bzSetLetter(l);
+}
+(function bzInitUi() {
+  const car = document.getElementById('bz-car');
+  car.addEventListener('click', e => {
+    const b = e.target.closest('.bz-c'); if (!b) return; const x = bzItems[+b.dataset.i]; if (!x) return;
+    setMode('artist'); pickArtist(x.name);
+    window.scrollTo({ top: document.getElementById('request-form').offsetTop - 80, behavior: 'smooth' });
+  });
+  car.addEventListener('scroll', () => {
+    if (bzRaf) return;
+    bzRaf = requestAnimationFrame(() => {
+      bzRaf = 0;
+      for (const c of car.querySelectorAll('.bz-c')) { if (c.offsetLeft - car.offsetLeft + c.offsetWidth > car.scrollLeft + 24) { bzSetLetter(c.dataset.l); break; } }
+    });
+  }, { passive: true });
+  // tap = two cards, hold = glide
+  function hold(btn, dir) {
+    let raf = 0, t0 = 0, held = false, tmr = 0;
+    const step = () => { car.scrollLeft += dir * 9; raf = requestAnimationFrame(step); };
+    const unit = () => { const c = car.querySelector('.bz-c'); return c ? c.offsetWidth + 12 : car.clientWidth; };
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); held = false; t0 = Date.now(); tmr = setTimeout(() => { held = true; car.classList.add('hold'); raf = requestAnimationFrame(step); }, 250); });
+    const end = () => { clearTimeout(tmr); cancelAnimationFrame(raf);
+      if (held) { car.classList.remove('hold'); const u = unit(); car.scrollTo({ left: Math.round(car.scrollLeft / u) * u, behavior: 'smooth' }); }
+      else if (t0) car.scrollBy({ left: dir * 2 * unit(), behavior: 'smooth' });
+      held = false; t0 = 0; };
+    btn.addEventListener('pointerup', end);
+    btn.addEventListener('pointercancel', () => { clearTimeout(tmr); cancelAnimationFrame(raf); car.classList.remove('hold'); t0 = 0; });
+    btn.addEventListener('pointerleave', () => { if (t0) end(); });
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  hold(document.getElementById('bz-prev'), -1); hold(document.getElementById('bz-next'), 1);
+})();
 
 // ── STATE ──
 let chosenArtist = '';   // confirmed artist name
