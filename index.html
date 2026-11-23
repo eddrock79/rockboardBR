@@ -844,6 +844,7 @@ async function hideLongSongs(el, items, id) {
       const tmp = document.createElement('div'); tmp.innerHTML = it.main; const title = tmp.textContent;
       tmp.innerHTML = it.sub || ''; const artist = tmp.textContent || (id === 'dd-track' ? chosenArtist : '');
       if (!artist) continue;
+      if (allowedLong(title, artist)) continue;
       if (await songMs(title, artist) > MAX_TRACK_MS) row.remove();
     }
   };
@@ -861,6 +862,7 @@ async function spotifyMs(title, artist) {
   return SPOT[k];
 }
 async function songTooLong(title, artist) {
+  await loadBlocks(); if (allowedLong(title, artist)) return false;
   const sp = await spotifyMs(title, artist);
   return sp ? sp > MAX_TRACK_MS : (await songMs(title, artist)) > MAX_TRACK_MS;
 }
@@ -915,7 +917,7 @@ window.redeemGift = async function() {
 
 // ── BLOCKED ARTISTS + BANNED SONGS (staff page BLOCKED tab) ──
 // artists: br_settings/blocked {artists:[...]}; songs: the shared 'banned' collection
-const BLK = { artists: [], songs: [], at: 0 };
+const BLK = { artists: [], songs: [], allow: [], at: 0 };
 const bNorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ı/g, 'i').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^the /, '');
 async function loadBlocks(force) {
   if (!force && Date.now() - BLK.at < 120000) return;
@@ -925,9 +927,15 @@ async function loadBlocks(force) {
     BLK.artists = (a.exists() && a.data().artists || []).map(bNorm).filter(Boolean);
     const b = await fs.getDocs(fs.collection(db, 'banned'));
     BLK.songs = b.docs.map(d => ({ t: bNorm(d.data().title), a: bNorm(d.data().artist) })).filter(x => x.t);
+    const al = await fs.getDoc(fs.doc(db, 'br_settings', 'allowlong'));
+    BLK.allow = ((al.exists() && al.data().tracks) || []).map(x => ({ t: tNorm(x.title), a: bNorm(x.artist) })).filter(x => x.t);
     BLK.at = Date.now();
   } catch(e) { console.warn('blocks', e); }
 }
+// song titles without "(Remastered)", " - Live" etc, so Spotify's and Last.fm's names match
+function tNorm(t) { return bNorm(String(t || '').replace(/\s*[\(\[].*?[\)\]]/g, '').replace(/\s+-\s+.*$/, '')); }
+// staff's "always allow" list: classics allowed even though they're over 7 minutes
+function allowedLong(t, a) { const nt = tNorm(t), na = bNorm(a); return !!nt && BLK.allow.some(x => x.t === nt && (!x.a || !na || na.includes(x.a) || x.a.includes(na))); }
 function artistBlocked(a) { const n = ' ' + bNorm(a) + ' '; return !!bNorm(a) && BLK.artists.some(b => n.includes(' ' + b + ' ')); }
 function trackBlocked(t, a) {
   if (artistBlocked(a)) return true;
@@ -1285,7 +1293,7 @@ window.submitRequest = async function() {
     artData = await infoRes.json();
   } catch(e) {}
   const durMs = parseInt(artData?.track?.duration || '0', 10) || 0;
-  if (durMs > MAX_TRACK_MS || await songTooLong(title, artist)) { showMsg('SORRY · THAT ONE’S OVER 7 MINUTES', 'err'); return; }
+  if (!allowedLong(title, artist) && (durMs > MAX_TRACK_MS || await songTooLong(title, artist))) { showMsg('SORRY · THAT ONE’S OVER 7 MINUTES', 'err'); return; }
   useRequest();
   try {
     // Fetch album art from Last.fm before saving

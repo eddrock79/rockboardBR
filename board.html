@@ -1007,7 +1007,7 @@ async function boardRunAutoQueue() {
         if (f?.uri) break;
       }
       if (!f?.uri) break;   // Spotify not answering: try again next round (as before)
-      if (f.duration && f.duration > MAX_TRACK_MS) {
+      if (f.duration && f.duration > MAX_TRACK_MS && !allowedLong(cand.title, cand.artist)) {
         console.log(`⏭ Over 7 min, not queued: ${cand.title}`);
         try { await deleteDoc(doc(db,C_TRACKS,cand.id)); } catch(e) {}
         continue;
@@ -1283,7 +1283,7 @@ const MAX_TRACK_MS = 7 * 60 * 1000; // no track plays past 7 minutes (same rule 
 
 // ── BLOCKED ARTISTS + BANNED SONGS (staff page BLOCKED tab) ──
 // artists: br_settings/blocked {artists:[...]}; songs: the shared 'banned' collection
-const BLK = { artists: [], songs: [], at: 0 };
+const BLK = { artists: [], songs: [], allow: [], at: 0 };
 const bNorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ı/g, 'i').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^the /, '');
 async function loadBlocks(force) {
   if (!force && Date.now() - BLK.at < 120000) return;
@@ -1293,9 +1293,15 @@ async function loadBlocks(force) {
     BLK.artists = (a.exists() && a.data().artists || []).map(bNorm).filter(Boolean);
     const b = await fs.getDocs(fs.collection(db, 'banned'));
     BLK.songs = b.docs.map(d => ({ t: bNorm(d.data().title), a: bNorm(d.data().artist) })).filter(x => x.t);
+    const al = await fs.getDoc(fs.doc(db, 'br_settings', 'allowlong'));
+    BLK.allow = ((al.exists() && al.data().tracks) || []).map(x => ({ t: tNorm(x.title), a: bNorm(x.artist) })).filter(x => x.t);
     BLK.at = Date.now();
   } catch(e) { console.warn('blocks', e); }
 }
+// song titles without "(Remastered)", " - Live" etc, so Spotify's and Last.fm's names match
+function tNorm(t) { return bNorm(String(t || '').replace(/\s*[\(\[].*?[\)\]]/g, '').replace(/\s+-\s+.*$/, '')); }
+// staff's "always allow" list: classics allowed even though they're over 7 minutes
+function allowedLong(t, a) { const nt = tNorm(t), na = bNorm(a); return !!nt && BLK.allow.some(x => x.t === nt && (!x.a || !na || na.includes(x.a) || x.a.includes(na))); }
 function artistBlocked(a) { const n = ' ' + bNorm(a) + ' '; return !!bNorm(a) && BLK.artists.some(b => n.includes(' ' + b + ' ')); }
 function trackBlocked(t, a) {
   if (artistBlocked(a)) return true;
@@ -1308,7 +1314,8 @@ async function fetchNowPlaying() {
   try {
     const res  = await fetch(CONFIG.spotify_worker_url + '/nowplaying');
     const data = await res.json();
-    if (data.playing && data.uri && data.progress > MAX_TRACK_MS && cutUri !== data.uri) {
+    loadBlocks();
+    if (data.playing && data.uri && data.progress > MAX_TRACK_MS && cutUri !== data.uri && !allowedLong(data.name, data.artist)) {
       cutUri = data.uri;   // once per track
       boardSpotifyCall('/skip', 'POST', {}).then(r => console.log('⏭ 7 min reached, next track', r)).catch(()=>{});
     }

@@ -283,7 +283,9 @@
     <div id="np-next"></div>
   </div>
   <div class="list-section" id="section-add">
-    <div class="list-label" style="padding:0 0 10px">ADD A TRACK (FREE) · GOES STRAIGHT ON THE BOARD</div>
+    <div class="list-label" style="padding:0 0 10px">⭐ STAFF FAVOURITES · ONE TAP ADDS IT TO THE BOARD</div>
+    <div id="fav-list" style="margin-bottom:24px"></div>
+    <div class="list-label" style="padding:0 0 10px">ADD A TRACK (FREE) · GOES STRAIGHT ON THE BOARD · ☆ SAVES IT AS A FAVOURITE</div>
     <div class="add-modes"><button class="ctrl-btn on" id="add-m-artist" onclick="staffAddMode('artist')">BY ARTIST</button><button class="ctrl-btn" id="add-m-song" onclick="staffAddMode('song')">BY SONG</button></div>
     <input id="add-inp" type="text" placeholder="Search for an artist…" autocomplete="off" oninput="staffAddSearch()">
     <div id="add-msg"></div>
@@ -335,6 +337,9 @@
     <div class="list-label" style="color:rgba(255,80,80,0.6)">BLOCKED ARTISTS · NONE OF THEIR SONGS CAN BE REQUESTED</div>
     <div style="display:flex;gap:8px;margin:0 0 10px"><input id="ba-inp" type="text" placeholder="Artist name, e.g. Crazy Frog" style="flex:1;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:16px" onkeydown="if(event.key==='Enter')blockArtist()"><button class="ctrl-btn clear-btn" onclick="blockArtist()">🚫 BLOCK</button></div>
     <div id="ba-list" style="margin-bottom:22px"></div>
+    <div class="list-label">ALWAYS ALLOW · CLASSICS THAT CAN PLAY EVEN THOUGH THEY’RE OVER 7 MINUTES</div>
+    <div style="display:flex;gap:8px;margin:0 0 8px;flex-wrap:wrap"><input id="al-t" type="text" placeholder="Song, e.g. One" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:#fff;font-size:16px;font-family:Outfit,sans-serif"><input id="al-a" type="text" placeholder="Artist, e.g. Metallica" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:#fff;font-size:16px;font-family:Outfit,sans-serif"><button class="ctrl-btn approve-btn on" onclick="allowLongAdd()">✓ ALLOW</button></div>
+    <div id="al-list" style="margin-bottom:22px"></div>
     <div class="list-label" style="color:rgba(255,80,80,0.6)">BANNED SONGS · <span id="banned-count-num2">0</span> TOTAL (🚫 ON A REQUEST ADDS IT HERE)</div>
     <div id="banned-list"></div>
   </div>
@@ -717,7 +722,8 @@ window._switchTab = function(tab) {
   });
   if (tab === 'requests') { renderPlayedHistory(); renderTopRequested(); }
   if (tab === 'playing') staffNowPlaying();
-  if (tab === 'banned') { renderBanned(); renderBlockedArtists(); }
+  if (tab === 'banned') { renderBanned(); renderBlockedArtists(); renderAllowLong(); }
+  if (tab === 'add') renderFavs();
   if (tab === 'browse') loadBrowse();
 };
 
@@ -1200,9 +1206,10 @@ window.staffAddMode = function(m) {
 };
 function addRows(rows) {
   document.getElementById('add-list').innerHTML = rows.map((r, i) =>
-    `<div class="add-row"><span>${escA(r.main)}<small>${escA(r.sub || '')}</small></span><button class="ctrl-btn" data-i="${i}">${r.btn}</button></div>`).join('')
+    `<div class="add-row"><span>${escA(r.main)}<small>${escA(r.sub || '')}</small></span>${r.btn === 'ADD' ? `<button class="ctrl-btn" data-fav="${i}" title="Save as a staff favourite">☆</button>` : ''}<button class="ctrl-btn" data-i="${i}">${r.btn}</button></div>`).join('')
     || '<div class="add-row"><span><small>No matches.</small></span></div>';
   document.querySelectorAll('#add-list [data-i]').forEach(b => { b.onclick = () => rows[+b.dataset.i].go(b); });
+  document.querySelectorAll('#add-list [data-fav]').forEach(b => { b.onclick = () => { const r = rows[+b.dataset.fav]; favAdd(r.main, r.sub || addArtist); b.textContent = '★'; }; });
 }
 window.staffAddSearch = function() {
   clearTimeout(addTimer);
@@ -1232,7 +1239,7 @@ async function staffAddTrack(title, artist, btn) {
   let info = null;
   try { info = await lfm('method=track.getInfo&artist=' + encodeURIComponent(artist) + '&track=' + encodeURIComponent(title)); } catch(e) {}
   const dur = parseInt(info?.track?.duration || '0', 10) || 0;
-  if (dur > MAX_TRACK_MS) { msg.style.color = '#ff6666'; msg.textContent = 'OVER 7 MINUTES · NOT ADDED'; if (btn) { btn.disabled = false; btn.textContent = 'ADD'; } return; }
+  if (dur > MAX_TRACK_MS && !(await isAllowLong(title, artist))) { msg.style.color = '#ff6666'; msg.textContent = 'OVER 7 MINUTES · NOT ADDED'; if (btn) { btn.disabled = false; btn.textContent = 'ADD'; } return; }
   const img = (info?.track?.album?.image || []).find(i => i.size === 'large')?.['#text'] || '';
   try {
     await addDoc(collection(db, C_TRACKS), {
@@ -1305,12 +1312,46 @@ window.giveFree = async function(n) {
 async function renderTopRequested() {
   const el = document.getElementById('top-list'); if (!el) return;
   try {
-    const snap = await getDocs(collection(db, C_ALLTIME));
-    const rows = snap.docs.map(d => d.data()).filter(r => r.title).sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 25);
+    const fs = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const snap = await getDocs(fs.query(collection(db, C_ALLTIME), fs.orderBy('plays', 'desc'), fs.limit(25)));
+    const rows = snap.docs.map(d => d.data()).filter(r => r.title);
     const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     el.innerHTML = rows.length ? rows.map((r, i) => `<div class="up-row"><b>${i + 1}</b>${r.thumb ? `<img src="${esc(r.thumb)}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover">` : ''}<span>${esc(r.title)} <small>· ${esc(r.artist)}</small></span><b style="width:auto;color:var(--hub-gold)">${r.plays || 0}×</b></div>`).join('')
       : '<div class="empty-state">Nothing yet</div>';
   } catch(e) { el.innerHTML = '<div class="empty-state">Couldn’t load the list</div>'; }
+}
+
+// ── ALWAYS ALLOW (over 7 minutes) + STAFF FAVOURITES (br_settings/allowlong, br_settings/favs) ──
+const lNorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s*[\(\[].*?[\)\]]/g, '').replace(/\s+-\s+.*$/, '').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^the /, '');
+const escL = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function getList(id) { try { const s = await getDoc(doc(db, C_SETTINGS, id)); return (s.exists() && s.data().tracks) || []; } catch(e) { return []; } }
+async function setList(id, tracks) { await setDoc(doc(db, C_SETTINGS, id), { tracks }, { merge: true }); }
+async function isAllowLong(t, a) { const nt = lNorm(t), na = lNorm(a); return (await getList('allowlong')).some(x => lNorm(x.title) === nt && (!x.artist || na.includes(lNorm(x.artist)) || lNorm(x.artist).includes(na))); }
+async function renderAllowLong() {
+  const el = document.getElementById('al-list'); if (!el) return;
+  const list = await getList('allowlong');
+  el.innerHTML = list.length ? list.map((x, i) => `<div class="up-row"><span>✓ ${escL(x.title)} <small>· ${escL(x.artist)}</small></span><button class="ctrl-btn clear-btn" style="padding:6px 12px;font-size:14px" data-ar="${i}">REMOVE</button></div>`).join('')
+    : '<div class="empty-state">Nothing on the list</div>';
+  el.querySelectorAll('[data-ar]').forEach(b => b.onclick = async () => { const l = await getList('allowlong'); l.splice(+b.dataset.ar, 1); await setList('allowlong', l); renderAllowLong(); });
+}
+window.allowLongAdd = async function() {
+  const t = document.getElementById('al-t').value.trim(), a = document.getElementById('al-a').value.trim(); if (!t) return;
+  const l = await getList('allowlong'); if (!l.some(x => lNorm(x.title) === lNorm(t) && lNorm(x.artist) === lNorm(a))) l.push({ title: t, artist: a });
+  await setList('allowlong', l); document.getElementById('al-t').value = ''; document.getElementById('al-a').value = '';
+  showStaffToast('✓ ALWAYS ALLOWED: ' + t); renderAllowLong();
+};
+async function renderFavs() {
+  const el = document.getElementById('fav-list'); if (!el) return;
+  const list = await getList('favs');
+  el.innerHTML = list.length ? list.map((x, i) => `<div class="add-row"><span>⭐ ${escL(x.title)}<small>${escL(x.artist)}</small></span><button class="ctrl-btn" data-fr="${i}" title="Remove from favourites" style="border-color:var(--hub-border)!important;color:#c9c9d1!important">✕</button><button class="ctrl-btn" data-fa="${i}">ADD</button></div>`).join('')
+    : '<div class="empty-state">No favourites yet. Tap ☆ on a search result to save one.</div>';
+  el.querySelectorAll('[data-fa]').forEach(b => b.onclick = () => { const x = list[+b.dataset.fa]; staffAddTrack(x.title, x.artist, b); });
+  el.querySelectorAll('[data-fr]').forEach(b => b.onclick = async () => { const l = await getList('favs'); l.splice(+b.dataset.fr, 1); await setList('favs', l); renderFavs(); });
+}
+async function favAdd(title, artist) {
+  const tmp = document.createElement('div'); tmp.innerHTML = title; title = tmp.textContent; tmp.innerHTML = artist || ''; artist = tmp.textContent;
+  const l = await getList('favs'); if (!l.some(x => lNorm(x.title) === lNorm(title) && lNorm(x.artist) === lNorm(artist))) l.push({ title, artist });
+  await setList('favs', l); showStaffToast('⭐ SAVED: ' + title); renderFavs();
 }
 </script>
 </body>
