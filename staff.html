@@ -93,6 +93,7 @@
   .add-row span{flex:1}.add-row small{display:block;color:rgba(240,237,232,0.45)}
   .add-row .ctrl-btn{padding:10px 16px;font-size:17px;background:transparent;border-color:var(--green);color:var(--green)}
   #section-more #controls-bar{border:0;background:none;padding:0}
+  #auto-approve-btn,#auto-queue-btn{display:none!important} /* always on: no buttons (2026-11-23) */
   .more-k{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.4);margin:18px 0 8px}
   @media(max-width:700px){.tab{padding:14px 4px;font-size:15px;letter-spacing:1px}#np-title{font-size:24px}.np-card img{width:72px;height:72px}}
   .list-section.show{display:block}
@@ -265,7 +266,7 @@
     <div class="list-label">LIVE ON THE BOARD · <span id="approved-count-num">0</span></div>
     <div id="approved-list"></div>
   </div>
-  <div class="list-section" id="section-more"><div class="more-k">SETTINGS &amp; NIGHT</div><div id="more-host"></div></div>
+  <div class="list-section" id="section-more"><div class="more-k">SETTINGS &amp; NIGHT</div><div style="font-family:var(--font-body);font-size:14px;color:rgba(240,237,232,0.5);margin:0 0 12px">Requests go straight on the board and the top track plays automatically. Change how often below.</div><div id="more-host"></div></div>
 </div>
 
   <div class="list-section" id="section-browse">
