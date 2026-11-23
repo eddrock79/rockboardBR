@@ -373,7 +373,7 @@ document.getElementById('s-venue').textContent = 'STAFF · ' + CONFIG.venueName;
 document.title = 'Staff · ' + CONFIG.venueName;
 
 // ── PERSISTENT LOGIN ──
-const SESSION_KEY = 'rb_staff_authed';
+const SESSION_KEY = 'rb_staff_authed2'; // v2: everyone signs in once with the new PIN (2026-11-23)
 let isAuthed = false;
 
 function checkPersistedLogin() {
@@ -447,13 +447,15 @@ function updatePinDots() {
 
 async function checkPin() {
   // The worker checks the PIN (STAFF_PIN secret in Cloudflare). Until that's set up, the old PIN in this page still works.
-  let ok = null;
+  let ok = null, why = 'WRONG PIN · TRY AGAIN';
   try {
     const r = await fetch(CONFIG.spotify_worker_url + '/staff/check', { method: 'POST', headers: { 'X-Staff-Pin': pinEntry } });
     const j = await r.json().catch(() => ({}));
-    if (r.status === 401) ok = false; else if (j.ok) ok = true;
+    if (r.status === 401) ok = false;
+    else if (j.ok) ok = true;
+    else if (/not set/i.test(j.reason || '')) ok = pinEntry === CONFIG.staffPin;   // no PIN secret in Cloudflare yet: old PIN
   } catch(e) {}
-  if (ok === null) ok = pinEntry === CONFIG.staffPin;
+  if (ok === null) { ok = false; why = 'CAN’T REACH THE PIN CHECK · TRY AGAIN'; }
   if (ok) {
     try { sessionStorage.setItem('rb_staff_pin', pinEntry); } catch(e) {}
     if (document.getElementById('remember-me').checked) {
@@ -462,7 +464,7 @@ async function checkPin() {
     }
     showApp();
   } else {
-    document.getElementById('pin-error').textContent = 'WRONG PIN · TRY AGAIN';
+    document.getElementById('pin-error').textContent = why;
     pinEntry = ''; updatePinDots();
     setTimeout(() => { document.getElementById('pin-error').textContent = ''; }, 2000);
   }
