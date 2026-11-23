@@ -36,12 +36,22 @@
   .vl-num.warn{color:var(--amber)}
   .vl-num.empty{color:#8b0000}
   .get-more-btn{
-    margin-left:14px;font-size:11px;font-weight:800;letter-spacing:0.6px;
-    background:rgba(108,43,217,0.18);color:var(--pink);border:1px solid rgba(255,255,255,0.25);
+    margin-left:14px;font-size:12px;font-weight:900;letter-spacing:0.6px;
+    background:#1ED760;color:#000;border:1px solid #1ED760;box-shadow:0 0 14px rgba(30,215,96,0.45);
     border-radius:7px;padding:8px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;
     white-space:nowrap;
   }
-  .get-more-btn:active{background:rgba(108,43,217,0.32)}
+  .get-more-btn:active{background:#17b34f}
+  .get-more-btn.hot{animation:gmPulse 1.6s ease-in-out infinite}
+  @keyframes gmPulse{0%,100%{box-shadow:0 0 8px rgba(30,215,96,0.4)}50%{box-shadow:0 0 22px rgba(30,215,96,0.95)}}
+  @media(max-width:430px){.get-more-btn{margin-left:4px;padding:8px 8px;font-size:11px}}
+  #price-strip{margin:-4px 0 16px;padding:12px 14px;border-radius:12px;background:rgba(30,215,96,0.07);border:1px solid rgba(30,215,96,0.3)}
+  #price-strip .ps-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  #price-strip .ps-t{flex:1 1 130px;border-radius:10px;padding:10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#fff;text-align:left;cursor:pointer;font:inherit}
+  #price-strip .ps-t b{display:block;font-size:22px;color:#1ED760}
+  #price-strip .ps-t span{font-size:13px;color:rgba(255,255,255,0.8)}
+  #price-strip .ps-k{font-size:13px;color:rgba(255,255,255,0.75)}
+  #gift-section .gs-box{display:flex;gap:8px;max-width:360px}
   .get-more-btn:disabled{opacity:0.5;cursor:default}
   .purchase-toast{
     position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:500;
@@ -363,6 +373,7 @@
 
 <div class="section">
   <div class="section-title">Request a track</div>
+  <div id="price-strip"></div>
 
   <div id="search-mode">
     <button class="mode-btn" id="mode-browse-btn" onclick="setMode('browse')" style="display:none">📖 Browse</button>
@@ -475,12 +486,6 @@
     <div class="rl-text" id="rl-text1">You've used all your requests for this hour.</div>
     <div id="countdown">-</div>
         <div class="rl-text" id="rl-text2">Check back when the clock resets, or get more now.</div>
-    <div style="margin:20px auto 0;max-width:320px">
-      <div class="rl-text" style="margin-bottom:8px">Got a code from the bar?</div>
-      <div style="display:flex;gap:8px"><input id="gift-inp" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="CODE" style="flex:1;min-width:0;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;font-size:20px;letter-spacing:4px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')redeemGift()">
-      <button style="padding:12px 18px;border-radius:8px;border:none;background:#1ED760;color:#000;font-weight:800" onclick="redeemGift()">USE</button></div>
-      <div id="gift-msg" class="rl-text" style="min-height:20px;margin-top:8px"></div>
-    </div>
     <button class="get-more-btn" style="display:block;margin:22px auto 0;font-size:15px;padding:15px 24px;background:#6c2bd9;color:#fff;border:none" onclick="openTopUpModal()">GET MORE REQUESTS &amp; VOTES</button>
   </div>
 
@@ -492,6 +497,13 @@
   <div id="vote-list">
     <div id="empty-board">NO TRACKS YET TONIGHT<br>BE THE FIRST TO REQUEST ONE<br>🎸</div>
   </div>
+</div>
+
+<div class="section" id="gift-section" style="margin-top:24px;margin-bottom:40px">
+  <div class="section-title" style="font-size:16px">Got a code from the bar? 🎁</div>
+  <div class="gs-box"><input id="gift-inp" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="CODE" style="flex:1;min-width:0;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;font-size:20px;letter-spacing:4px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')redeemGift()">
+  <button style="padding:12px 18px;border-radius:8px;border:none;background:#1ED760;color:#000;font-weight:800" onclick="redeemGift()">USE</button></div>
+  <div id="gift-msg" style="min-height:20px;margin-top:8px;font-size:13px;color:rgba(255,255,255,0.7)"></div>
 </div>
 
 <div id="toast"></div>
@@ -740,14 +752,18 @@ async function refreshEntitlement() {
   updateBadge();
 }
 
-function openTopUpModal() {
+function openTopUpModal(forTitle) {
   const list = document.getElementById('topup-tiers');
   list.innerHTML = CONFIG.topUpTiers.map(t => `
     <button class="topup-tier" onclick="buyTier('${t.id}')">
       <span class="tt-price">${t.priceLabel}</span>
-      <span class="tt-grant">+${t.extraRequests} requests<br>+${t.extraVotes} double votes</span>
+      <span class="tt-grant">${t.extraRequests} track requests<br>+ ${t.extraVotes} double votes</span>
     </button>
   `).join('');
+  const sub = document.querySelector('#topup-modal .topup-sub');
+  if (sub) sub.textContent = typeof forTitle === 'string' && forTitle
+    ? 'Pick a top-up to send “' + forTitle + '”. Your pick is saved, it goes straight on the board after paying.'
+    : 'Pick a top-up — added to what you already have. Buy as many as you like.';
   document.getElementById('topup-modal').style.display = 'flex';
 }
 function closeTopUpModal() {
@@ -805,6 +821,30 @@ function showPurchaseToast(msg) {
 })();
 
 const MAX_TRACK_MS = 7 * 60 * 1000; // no tracks over 7 minutes (same as the Banshee)
+
+// ── PRICES + SAVED PICK (pay when sending, like the Banshee) ──
+function paintPrices() {
+  const el = document.getElementById('price-strip'); if (!el) return;
+  el.innerHTML = '<div class="ps-k"><b style="color:#fff">Pick your track first, pay when you send it.</b> Voting is free.</div><div class="ps-row">'
+    + CONFIG.topUpTiers.map(t => `<button class="ps-t" onclick="openTopUpModal()"><b>${t.priceLabel}</b><span>${t.extraRequests} track requests + ${t.extraVotes} double votes</span></button>`).join('')
+    + '</div>';
+}
+paintPrices();
+function savePick(title, artist) { try { localStorage.setItem('rb_pick', JSON.stringify({ title, artist, at: Date.now() })); } catch(e) {} }
+function restorePick() {
+  try {
+    const p = JSON.parse(localStorage.getItem('rb_pick') || 'null');
+    if (!p || Date.now() - p.at > 3600000) { localStorage.removeItem('rb_pick'); return; }
+    if (!canRequest()) return;
+    setMode('song'); pickSong(p.title, p.artist);
+    localStorage.removeItem('rb_pick');
+    showMsg('YOUR PICK IS READY · TAP REQUEST', 'ok');
+    document.getElementById('submit-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch(e) {}
+}
+setTimeout(restorePick, 2500);    // after a Stripe payment the page reloads; credits arrive a moment later
+setTimeout(restorePick, 7000);
+window.restorePick = restorePick;
 async function giftHash(code) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('brgift:' + String(code).trim().toUpperCase()));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 24);
@@ -825,7 +865,7 @@ window.redeemGift = async function() {
     });
     if (!n) { msg.textContent = 'That code isn’t valid or has been used'; return; }
     localStorage.setItem('rb_gift', JSON.stringify({ left: giftLeft() + n.n, exp: n.exp }));
-    inp.value = ''; msg.textContent = ''; updateBadge();
+    inp.value = ''; msg.textContent = ''; updateBadge(); restorePick();
     showMsg('🎁 ' + n.n + ' FREE REQUEST' + (n.n > 1 ? 'S' : '') + ' ADDED', 'ok');
   } catch(e) { console.warn(e); msg.textContent = 'Couldn’t check the code · try again'; }
 };
@@ -883,7 +923,9 @@ function updateBadge() {
   // Colour coding: green → amber (≤3) → red (0)
   vlEl.className = 'vl-num' + (vl === 0 ? ' empty' : vl <= 3 ? ' warn' : '');
   rlEl.className = 'vl-num' + (rl === 0 ? ' empty' : rl <= 2 ? ' warn' : '');
-  const show = rl <= 0;
+  const show = false;   // guests can always browse and pick; paying happens when they send (2026-11-23)
+  document.querySelectorAll('#top-bar .get-more-btn').forEach(b => b.classList.toggle('hot', rl <= 0));
+  const sb = document.getElementById('submit-btn'); if (sb) sb.textContent = rl > 0 ? 'Request this track 🤘' : 'Request this track · from £1 🤘';
   document.getElementById('request-form').style.display = show ? 'none' : '';
   document.getElementById('rate-limit-screen').classList.toggle('on', show);
   const paidOnly = requestLimit() <= 0;   // never bought any: explain, no countdown
@@ -939,6 +981,7 @@ function paintBrowse() {
   }
   btn.style.display = bzItems.length ? '' : 'none';
   if (!bzItems.length) { if (mode === 'browse') setMode('artist'); return; }
+  if (!window.__bzFirst) { window.__bzFirst = 1; if (mode === 'artist' && !chosenArtist) setMode('browse'); }
   bzItems.sort((a,b) => bzKey(a.name).localeCompare(bzKey(b.name), 'en', {sensitivity:'base'}));
   const sig = JSON.stringify(bzItems); if (sig === browseSig) return; browseSig = sig;
   const letters = [...new Set(bzItems.map(x => bzInit(x.name)))].sort((a,b) => a==='#' ? 1 : b==='#' ? -1 : a.localeCompare(b));
@@ -1187,7 +1230,7 @@ window.submitRequest = async function() {
   }
   const name = document.getElementById('inp-name').value.trim() || 'Anonymous';
 
-  if (!canRequest()) { updateBadge(); return; }
+  if (!canRequest()) { savePick(title, artist); openTopUpModal(title); return; }
   await loadBlocks(true);
   if (trackBlocked(title, artist)) { showMsg('SORRY · NOT ON THE ROCKBOARD HERE', 'err'); return; }
   // Track info first: tracks over 7 minutes can't be requested (and don't use up a request)
