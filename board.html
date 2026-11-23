@@ -992,7 +992,13 @@ async function boardRunAutoQueue() {
       !recentlyPlayed.includes((t.title+'|||'+t.artist).toLowerCase())
     );
     let top = null, found = null;
+    await loadBlocks(true);
     for (const cand of candidates) {
+      if (trackBlocked(cand.title, cand.artist)) {
+        console.log(`🚫 Blocked, not queued: ${cand.title} — ${cand.artist}`);
+        try { await deleteDoc(doc(db,C_TRACKS,cand.id)); } catch(e) {}
+        continue;
+      }
       const ct = cleanT(cand.title);
       const ca = cand.artist.replace(/\s*feat\.?.*/i,'').trim() || cand.artist;
       let f = null;
@@ -1274,6 +1280,28 @@ let recentlyPlayedCache = {}; // title|||artist -> playedAt timestamp
 let trackNumber = 1;
 
 const MAX_TRACK_MS = 7 * 60 * 1000; // no track plays past 7 minutes (same rule as the Banshee)
+
+// ── BLOCKED ARTISTS + BANNED SONGS (staff page BLOCKED tab) ──
+// artists: br_settings/blocked {artists:[...]}; songs: the shared 'banned' collection
+const BLK = { artists: [], songs: [], at: 0 };
+const bNorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ı/g, 'i').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^the /, '');
+async function loadBlocks(force) {
+  if (!force && Date.now() - BLK.at < 120000) return;
+  try {
+    const fs = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const a = await fs.getDoc(fs.doc(db, 'br_settings', 'blocked'));
+    BLK.artists = (a.exists() && a.data().artists || []).map(bNorm).filter(Boolean);
+    const b = await fs.getDocs(fs.collection(db, 'banned'));
+    BLK.songs = b.docs.map(d => ({ t: bNorm(d.data().title), a: bNorm(d.data().artist) })).filter(x => x.t);
+    BLK.at = Date.now();
+  } catch(e) { console.warn('blocks', e); }
+}
+function artistBlocked(a) { const n = ' ' + bNorm(a) + ' '; return !!bNorm(a) && BLK.artists.some(b => n.includes(' ' + b + ' ')); }
+function trackBlocked(t, a) {
+  if (artistBlocked(a)) return true;
+  const nt = bNorm(t), na = bNorm(a);
+  return BLK.songs.some(x => x.t === nt && (!x.a || !na || na.includes(x.a) || x.a.includes(na)));
+}
 let cutUri = '';
 async function fetchNowPlaying() {
   if (!CONFIG.spotify_worker_url) return;

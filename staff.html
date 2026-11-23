@@ -285,7 +285,10 @@
   </div>
 
   <div class="list-section" id="section-banned">
-    <div class="list-label" style="color:rgba(255,80,80,0.6)">PERMANENTLY BANNED TRACKS · <span id="banned-count-num2">0</span> TOTAL</div>
+    <div class="list-label" style="color:rgba(255,80,80,0.6)">BLOCKED ARTISTS · NONE OF THEIR SONGS CAN BE REQUESTED</div>
+    <div style="display:flex;gap:8px;margin:0 0 10px"><input id="ba-inp" type="text" placeholder="Artist name, e.g. Crazy Frog" style="flex:1;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:16px" onkeydown="if(event.key==='Enter')blockArtist()"><button class="ctrl-btn clear-btn" onclick="blockArtist()">🚫 BLOCK</button></div>
+    <div id="ba-list" style="margin-bottom:22px"></div>
+    <div class="list-label" style="color:rgba(255,80,80,0.6)">BANNED SONGS · <span id="banned-count-num2">0</span> TOTAL (🚫 ON A REQUEST ADDS IT HERE)</div>
     <div id="banned-list"></div>
   </div>
 
@@ -665,7 +668,7 @@ window._switchTab = function(tab) {
   });
   if (tab === 'requests') renderPlayedHistory();
   if (tab === 'playing') staffNowPlaying();
-  if (tab === 'banned') renderBanned();
+  if (tab === 'banned') { renderBanned(); renderBlockedArtists(); }
   if (tab === 'browse') loadBrowse();
 };
 
@@ -1198,6 +1201,33 @@ async function staffAddTrack(title, artist, btn) {
   const bar = document.querySelector('[data-move="more"]'), host = document.getElementById('more-host');
   if (bar && host) host.appendChild(bar);
 })();
+
+// ── BLOCKED ARTISTS (br_settings/blocked) ──
+async function getBlockedArtists() {
+  try { const s = await getDoc(doc(db, C_SETTINGS, 'blocked')); return (s.exists() && s.data().artists) || []; } catch(e) { return []; }
+}
+async function renderBlockedArtists() {
+  const el = document.getElementById('ba-list'); if (!el) return;
+  const list = (await getBlockedArtists()).slice().sort((a, b) => a.localeCompare(b));
+  const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  el.innerHTML = list.length ? list.map((a, i) => `<div class="up-row"><span>🚫 ${esc(a)}</span><button class="ctrl-btn approve-btn" style="padding:6px 12px;font-size:14px" data-ub="${i}">UNBLOCK</button></div>`).join('')
+    : '<div class="empty-state">NO BLOCKED ARTISTS YET</div>';
+  el.querySelectorAll('[data-ub]').forEach(b => b.onclick = async () => {
+    const all = await getBlockedArtists(); const name = list[+b.dataset.ub];
+    await setDoc(doc(db, C_SETTINGS, 'blocked'), { artists: all.filter(x => x !== name) }, { merge: true });
+    showStaffToast('✅ UNBLOCKED: ' + name); renderBlockedArtists();
+  });
+}
+window.blockArtist = async function() {
+  const inp = document.getElementById('ba-inp'); const name = inp.value.trim(); if (!name) return;
+  const all = await getBlockedArtists();
+  if (!all.some(x => x.toLowerCase() === name.toLowerCase())) all.push(name);
+  await setDoc(doc(db, C_SETTINGS, 'blocked'), { artists: all }, { merge: true });
+  // take their songs off the board now
+  const low = name.toLowerCase();
+  for (const t of allTracks.filter(t => (t.artist || '').toLowerCase().includes(low))) { try { await deleteDoc(doc(db, C_TRACKS, t.id)); } catch(e) {} }
+  inp.value = ''; showStaffToast('🚫 BLOCKED: ' + name); renderBlockedArtists();
+};
 </script>
 </body>
 </html>

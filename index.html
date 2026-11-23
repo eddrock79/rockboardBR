@@ -800,6 +800,29 @@ function showPurchaseToast(msg) {
 })();
 
 const MAX_TRACK_MS = 7 * 60 * 1000; // no tracks over 7 minutes (same as the Banshee)
+
+// ── BLOCKED ARTISTS + BANNED SONGS (staff page BLOCKED tab) ──
+// artists: br_settings/blocked {artists:[...]}; songs: the shared 'banned' collection
+const BLK = { artists: [], songs: [], at: 0 };
+const bNorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ı/g, 'i').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^the /, '');
+async function loadBlocks(force) {
+  if (!force && Date.now() - BLK.at < 120000) return;
+  try {
+    const fs = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const a = await fs.getDoc(fs.doc(db, 'br_settings', 'blocked'));
+    BLK.artists = (a.exists() && a.data().artists || []).map(bNorm).filter(Boolean);
+    const b = await fs.getDocs(fs.collection(db, 'banned'));
+    BLK.songs = b.docs.map(d => ({ t: bNorm(d.data().title), a: bNorm(d.data().artist) })).filter(x => x.t);
+    BLK.at = Date.now();
+  } catch(e) { console.warn('blocks', e); }
+}
+function artistBlocked(a) { const n = ' ' + bNorm(a) + ' '; return !!bNorm(a) && BLK.artists.some(b => n.includes(' ' + b + ' ')); }
+function trackBlocked(t, a) {
+  if (artistBlocked(a)) return true;
+  const nt = bNorm(t), na = bNorm(a);
+  return BLK.songs.some(x => x.t === nt && (!x.a || !na || na.includes(x.a) || x.a.includes(na)));
+}
+loadBlocks(true);
 // ── RATE LIMITING ──
 function getBucket(key) {
   try { const d = JSON.parse(localStorage.getItem(key)||'null') || {count:0,windowStart:Date.now(),used:{}}; return Date.now()-d.windowStart>3600000 ? {count:0,windowStart:Date.now(),used:{}} : d; }
@@ -951,6 +974,8 @@ window.onArtistType = function() {
   timerA = setTimeout(() => lfSearch('artist', v, 'dd-artist', results => {
     spin('sp-artist', false);
     if (!results.length) return;
+    results = results.filter(a => !artistBlocked(a.name));
+    if (!results.length) return;
     renderDD('dd-artist', results.map(a => ({
       icon: '🎸', main: a.name, sub: '',
       onclick: () => pickArtist(a.name)
@@ -959,6 +984,7 @@ window.onArtistType = function() {
 };
 
 function pickArtist(name) {
+  if (artistBlocked(name)) { showMsg('SORRY · NOT ON THE ROCKBOARD HERE', 'err'); return; }
   chosenArtist = name;
   closeDD('dd-artist');
   const inpArtist = document.getElementById('inp-artist');
@@ -995,7 +1021,7 @@ async function loadTopTracks(artist) {
   try {
     const data = await lfFetch(`artist.gettoptracks&artist=${encodeURIComponent(artist)}&limit=20`);
     spin('sp-track', false);
-    const tracks = data.toptracks?.track || [];
+    const tracks = (data.toptracks?.track || []).filter(t => !trackBlocked(t.name, artist));
     if (!tracks.length) return;
     renderDD('dd-track', tracks.map(t => ({
       icon: '🎵', main: t.name, sub: '',
@@ -1026,6 +1052,7 @@ window.onTrackType = function() {
         list = [...list, ...extras].slice(0,20);
       }
       spin('sp-track', false);
+      list = list.filter(t => !trackBlocked(t.name, t.artist || chosenArtist));
       if (!list.length) { closeDD('dd-track'); return; }
       renderDD('dd-track', list.map(t => ({
         icon:'🎵', main:t.name, sub: t.artist !== chosenArtist ? t.artist : '',
@@ -1071,8 +1098,9 @@ window.onSongType = function() {
       const data = await lfFetch(`track.search&track=${encodeURIComponent(v)}&limit=20`);
       const list = data.results?.trackmatches?.track || [];
       spin('sp-song', false);
-      if (!list.length) return;
-      renderDD('dd-song', list.map(t => ({
+      const okList = list.filter(t => !trackBlocked(t.name, t.artist));
+      if (!okList.length) return;
+      renderDD('dd-song', okList.map(t => ({
         icon:'🎵', main:t.name, sub:t.artist,
         onclick: () => pickSong(t.name, t.artist)
       })));
@@ -1126,6 +1154,8 @@ window.submitRequest = async function() {
   const name = document.getElementById('inp-name').value.trim() || 'Anonymous';
 
   if (!canRequest()) { updateBadge(); return; }
+  await loadBlocks(true);
+  if (trackBlocked(title, artist)) { showMsg('SORRY · NOT ON THE ROCKBOARD HERE', 'err'); return; }
   // Track info first: tracks over 7 minutes can't be requested (and don't use up a request)
   let artData = null;
   try {
