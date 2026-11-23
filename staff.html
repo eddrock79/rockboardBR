@@ -301,7 +301,7 @@
     <div id="gift-out" style="text-align:center;margin:10px 0 18px"></div>
     <div class="list-label" style="padding:0 0 8px">FREE REQUESTS GIVEN · WHO GAVE THEM</div>
     <div id="gift-log" style="margin-bottom:30px"></div>
-    <div class="list-label" style="padding:0 0 10px">STAFF NAMES · TAP YOUR NAME, SONGS YOU ADD SHOW IT ON THE BOARD</div>
+    <div class="list-label" style="padding:0 0 10px">OTHER STAFF NAMES · FOR ANYONE NOT ON THE ROTA (ROTA NAMES COME UP BY THEMSELVES)</div>
     <div id="sn-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
     <div style="display:flex;gap:8px;margin-bottom:30px"><input id="sn-inp" type="text" placeholder="Add a name" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:#fff;font-size:16px;font-family:Outfit,sans-serif" onkeydown="if(event.key==='Enter')staffNameAdd()"><button class="ctrl-btn approve-btn on" onclick="staffNameAdd()">＋ ADD</button></div>
   </div>
@@ -1373,33 +1373,46 @@ async function getNames() { try { const x = await getDoc(doc(db, C_SETTINGS, 'st
 async function saveName(n) { const l = await getNames(); if (n && !l.some(x => x.toLowerCase() === n.toLowerCase())) { l.push(n); l.sort((a, b) => a.localeCompare(b)); await setDoc(doc(db, C_SETTINGS, 'staffnames'), { names: l }, { merge: true }); } }
 function whoNow() { try { return sessionStorage.getItem('rb_staff_who') || ''; } catch(e) { return ''; } }
 function setWho(n) { try { sessionStorage.setItem('rb_staff_who', n); } catch(e) {} paintAddAs(); renderStaffNames(); }
-function paintAddAs() { const el = document.getElementById('add-as'); if (el) el.innerHTML = whoNow() ? `Adding songs as <b style="color:var(--hub-gold)">${escL(whoNow())}</b> · <a href="#" onclick="event.preventDefault();sessionStorage.removeItem('rb_staff_who');paintAddAs();renderStaffNames()" style="color:#c9c9d1">not you?</a>` : 'Pick your name under <b>Staff names</b> (bottom of this page), or you’ll be asked when you add a song.'; }
+function paintAddAs() { const el = document.getElementById('add-as'); if (el) el.innerHTML = 'You’ll be asked who’s adding each time: today’s rota names come up first.'; }
 async function renderStaffNames() {
   paintAddAs();
   const el = document.getElementById('sn-list'); if (!el) return;
   const names = await getNames(), me = whoNow().toLowerCase();
   el.innerHTML = names.length ? names.map((n, i) => `<span style="display:inline-flex;gap:2px"><button class="ctrl-btn ${n.toLowerCase() === me ? 'approve-btn on' : 'np-ghost'}" data-sn="${i}">${escL(n)}</button><button class="ctrl-btn np-ghost" data-snx="${i}" title="Remove name" style="padding:8px 10px">✕</button></span>`).join('')
     : '<div class="empty-state">No names yet</div>';
-  el.querySelectorAll('[data-sn]').forEach(b => b.onclick = () => setWho(names[+b.dataset.sn]));
+
   el.querySelectorAll('[data-snx]').forEach(b => b.onclick = async () => { const l = await getNames(); l.splice(+b.dataset.snx, 1); await setDoc(doc(db, C_SETTINGS, 'staffnames'), { names: l }, { merge: true }); renderStaffNames(); });
 }
 window.paintAddAs = paintAddAs; window.renderStaffNames = renderStaffNames;
-window.staffNameAdd = async function() { const i = document.getElementById('sn-inp'); const n = i.value.trim(); if (!n) return; await saveName(n); i.value = ''; setWho(n); };
+window.staffNameAdd = async function() { const i = document.getElementById('sn-inp'); const n = i.value.trim(); if (!n) return; await saveName(n); i.value = ''; renderStaffNames(); };
 // pop-up: tap your name or type a new one
+// today's names from the Black Rose rota (the day runs 6am to 6am)
+async function rotaToday() {
+  try {
+    const d = (await (await fetch('https://blackrose.hauntedpubs.co.uk/rotas/shifts.json?t=' + Date.now())).json()).days || {};
+    const t = new Date(); if (t.getHours() < 6) t.setDate(t.getDate() - 1);
+    const iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+    const k = d[iso] ? iso : Object.keys(d).filter(x => x.slice(5) === iso.slice(5)).pop();
+    return [...new Set(((k && d[k]) || []).map(x => String(x.name || '').trim()).filter(Boolean))];
+  } catch(e) { return []; }
+}
 function askStaffName() {
-  if (whoNow()) return Promise.resolve(whoNow());
   return new Promise(async resolve => {
-    const names = await getNames();
+    const [rota, saved] = await Promise.all([rotaToday(), getNames()]);
+    const others = saved.filter(n => !rota.some(r => r.toLowerCase() === n.toLowerCase()));
+    const names = rota.concat(others);
+    const btn = (n, i) => `<button class="ctrl-btn ${i < rota.length ? 'approve-btn on' : 'np-ghost'}" data-pick="${i}">${escL(n)}</button>`;
     const o = document.createElement('div');
     o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:16px';
     o.innerHTML = `<div style="background:var(--hub-surface);border:1px solid var(--hub-border);border-radius:16px;padding:20px;max-width:440px;width:100%;font-family:Outfit,sans-serif">
       <div style="font-family:'Alfa Slab One',Georgia,serif;font-size:22px;margin-bottom:6px">Who’s adding this?</div>
-      <div style="color:#c9c9d1;margin-bottom:14px">Your name shows on the board with the song. You’ll only be asked once.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${names.map((n, i) => `<button class="ctrl-btn np-ghost" data-pick="${i}">${escL(n)}</button>`).join('')}</div>
+      <div style="color:#c9c9d1;margin-bottom:12px">Tap your name. It’s saved with what you add or give.</div>
+      ${rota.length ? `<div class="list-label" style="margin-bottom:8px">WORKING TODAY (ROTA)</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${rota.map((n, i) => btn(n, i)).join('')}</div>` : ''}
+      ${others.length ? `<div class="list-label" style="margin-bottom:8px">OTHER STAFF</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${others.map((n, i) => btn(n, i + rota.length)).join('')}</div>` : ''}
       <div style="display:flex;gap:8px"><input id="sn-new" type="text" placeholder="Or type your name" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:#fff;font-size:16px"><button class="ctrl-btn approve-btn on" id="sn-ok">OK</button></div>
       <button class="ctrl-btn np-ghost" id="sn-cancel" style="width:100%;margin-top:12px">CANCEL</button></div>`;
     document.body.appendChild(o);
-    const done = async n => { o.remove(); if (n) { await saveName(n); setWho(n); } resolve(n || ''); };
+    const done = async n => { o.remove(); if (n && !rota.some(r => r.toLowerCase() === n.toLowerCase())) await saveName(n); resolve(n || ''); };
     o.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => done(names[+b.dataset.pick]));
     o.querySelector('#sn-ok').onclick = () => done(o.querySelector('#sn-new').value.trim());
     o.querySelector('#sn-new').onkeydown = e => { if (e.key === 'Enter') done(o.querySelector('#sn-new').value.trim()); };
