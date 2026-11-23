@@ -283,6 +283,7 @@
     <div id="np-next"></div>
   </div>
   <div class="list-section" id="section-add">
+    <div id="add-as" style="font-family:Outfit,sans-serif;font-size:15px;color:#c9c9d1;margin:0 0 14px"></div>
     <div class="list-label" style="padding:0 0 10px">⭐ STAFF FAVOURITES · ONE TAP ADDS IT TO THE BOARD</div>
     <div id="fav-list" style="margin-bottom:24px"></div>
     <div class="list-label" style="padding:0 0 10px">ADD A TRACK (FREE) · GOES STRAIGHT ON THE BOARD · ☆ SAVES IT AS A FAVOURITE</div>
@@ -298,6 +299,9 @@
       <button class="ctrl-btn np-ghost" onclick="giveFree(3)">3 FREE</button>
     </div>
     <div id="gift-out" style="text-align:center;margin:10px 0 30px"></div>
+    <div class="list-label" style="padding:0 0 10px">STAFF NAMES · TAP YOUR NAME, SONGS YOU ADD SHOW IT ON THE BOARD</div>
+    <div id="sn-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:30px"><input id="sn-inp" type="text" placeholder="Add a name" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:#fff;font-size:16px;font-family:Outfit,sans-serif" onkeydown="if(event.key==='Enter')staffNameAdd()"><button class="ctrl-btn approve-btn on" onclick="staffNameAdd()">＋ ADD</button></div>
   </div>
   <div class="list-section show" id="section-pending">
     <div class="list-label" style="display:flex;justify-content:space-between;align-items:center">
@@ -525,7 +529,7 @@ async function checkPin() {
 window._lock = () => {
   isAuthed = false;
   localStorage.removeItem(SESSION_KEY);
-  try { localStorage.removeItem('rb_staff_pin'); sessionStorage.removeItem('rb_staff_pin'); } catch(e) {}
+  try { localStorage.removeItem('rb_staff_pin'); sessionStorage.removeItem('rb_staff_pin'); sessionStorage.removeItem('rb_staff_who'); } catch(e) {}
   pinEntry = ''; updatePinDots();
   document.getElementById('pin-screen').style.display = '';
   document.getElementById('staff-app').classList.remove('show');
@@ -723,7 +727,7 @@ window._switchTab = function(tab) {
   if (tab === 'requests') { renderPlayedHistory(); renderTopRequested(); }
   if (tab === 'playing') staffNowPlaying();
   if (tab === 'banned') { renderBanned(); renderBlockedArtists(); renderAllowLong(); }
-  if (tab === 'add') renderFavs();
+  if (tab === 'add') { renderFavs(); renderStaffNames(); }
   if (tab === 'browse') loadBrowse();
 };
 
@@ -1234,6 +1238,7 @@ async function staffPickArtist(name) {
   addRows((d.toptracks?.track || []).map(t => ({ main: t.name, sub: name, btn: 'ADD', go: b => staffAddTrack(t.name, name, b) })));
 }
 async function staffAddTrack(title, artist, btn) {
+  const who = await askStaffName(); if (!who) return;
   const msg = document.getElementById('add-msg');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   let info = null;
@@ -1243,7 +1248,7 @@ async function staffAddTrack(title, artist, btn) {
   const img = (info?.track?.album?.image || []).find(i => i.size === 'large')?.['#text'] || '';
   try {
     await addDoc(collection(db, C_TRACKS), {
-      title, artist, requester: 'Staff pick', votes: 1, uniqueVoters: 1, voters: [],
+      title, artist, requester: who + ' (staff)', votes: 1, uniqueVoters: 1, voters: [],
       approved: true, genreMismatch: false, staffAdded: true, createdAt: Date.now(),
       spotifyImage: img && !img.includes('noimage') ? img : '',
     });
@@ -1352,6 +1357,45 @@ async function favAdd(title, artist) {
   const tmp = document.createElement('div'); tmp.innerHTML = title; title = tmp.textContent; tmp.innerHTML = artist || ''; artist = tmp.textContent;
   const l = await getList('favs'); if (!l.some(x => lNorm(x.title) === lNorm(title) && lNorm(x.artist) === lNorm(artist))) l.push({ title, artist });
   await setList('favs', l); showStaffToast('⭐ SAVED: ' + title); renderFavs();
+}
+
+// ── STAFF NAMES (br_settings/staffnames): who added a song; asked once per sign-in ──
+async function getNames() { try { const x = await getDoc(doc(db, C_SETTINGS, 'staffnames')); return (x.exists() && x.data().names) || []; } catch(e) { return []; } }
+async function saveName(n) { const l = await getNames(); if (n && !l.some(x => x.toLowerCase() === n.toLowerCase())) { l.push(n); l.sort((a, b) => a.localeCompare(b)); await setDoc(doc(db, C_SETTINGS, 'staffnames'), { names: l }, { merge: true }); } }
+function whoNow() { try { return sessionStorage.getItem('rb_staff_who') || ''; } catch(e) { return ''; } }
+function setWho(n) { try { sessionStorage.setItem('rb_staff_who', n); } catch(e) {} paintAddAs(); renderStaffNames(); }
+function paintAddAs() { const el = document.getElementById('add-as'); if (el) el.innerHTML = whoNow() ? `Adding songs as <b style="color:var(--hub-gold)">${escL(whoNow())}</b> · <a href="#" onclick="event.preventDefault();sessionStorage.removeItem('rb_staff_who');paintAddAs();renderStaffNames()" style="color:#c9c9d1">not you?</a>` : 'Pick your name under <b>Staff names</b> (bottom of this page), or you’ll be asked when you add a song.'; }
+async function renderStaffNames() {
+  paintAddAs();
+  const el = document.getElementById('sn-list'); if (!el) return;
+  const names = await getNames(), me = whoNow().toLowerCase();
+  el.innerHTML = names.length ? names.map((n, i) => `<span style="display:inline-flex;gap:2px"><button class="ctrl-btn ${n.toLowerCase() === me ? 'approve-btn on' : 'np-ghost'}" data-sn="${i}">${escL(n)}</button><button class="ctrl-btn np-ghost" data-snx="${i}" title="Remove name" style="padding:8px 10px">✕</button></span>`).join('')
+    : '<div class="empty-state">No names yet</div>';
+  el.querySelectorAll('[data-sn]').forEach(b => b.onclick = () => setWho(names[+b.dataset.sn]));
+  el.querySelectorAll('[data-snx]').forEach(b => b.onclick = async () => { const l = await getNames(); l.splice(+b.dataset.snx, 1); await setDoc(doc(db, C_SETTINGS, 'staffnames'), { names: l }, { merge: true }); renderStaffNames(); });
+}
+window.paintAddAs = paintAddAs; window.renderStaffNames = renderStaffNames;
+window.staffNameAdd = async function() { const i = document.getElementById('sn-inp'); const n = i.value.trim(); if (!n) return; await saveName(n); i.value = ''; setWho(n); };
+// pop-up: tap your name or type a new one
+function askStaffName() {
+  if (whoNow()) return Promise.resolve(whoNow());
+  return new Promise(async resolve => {
+    const names = await getNames();
+    const o = document.createElement('div');
+    o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:16px';
+    o.innerHTML = `<div style="background:var(--hub-surface);border:1px solid var(--hub-border);border-radius:16px;padding:20px;max-width:440px;width:100%;font-family:Outfit,sans-serif">
+      <div style="font-family:'Alfa Slab One',Georgia,serif;font-size:22px;margin-bottom:6px">Who’s adding this?</div>
+      <div style="color:#c9c9d1;margin-bottom:14px">Your name shows on the board with the song. You’ll only be asked once.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${names.map((n, i) => `<button class="ctrl-btn np-ghost" data-pick="${i}">${escL(n)}</button>`).join('')}</div>
+      <div style="display:flex;gap:8px"><input id="sn-new" type="text" placeholder="Or type your name" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:#fff;font-size:16px"><button class="ctrl-btn approve-btn on" id="sn-ok">OK</button></div>
+      <button class="ctrl-btn np-ghost" id="sn-cancel" style="width:100%;margin-top:12px">CANCEL</button></div>`;
+    document.body.appendChild(o);
+    const done = async n => { o.remove(); if (n) { await saveName(n); setWho(n); } resolve(n || ''); };
+    o.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => done(names[+b.dataset.pick]));
+    o.querySelector('#sn-ok').onclick = () => done(o.querySelector('#sn-new').value.trim());
+    o.querySelector('#sn-new').onkeydown = e => { if (e.key === 'Enter') done(o.querySelector('#sn-new').value.trim()); };
+    o.querySelector('#sn-cancel').onclick = () => done('');
+  });
 }
 </script>
 </body>
