@@ -469,7 +469,6 @@
     </div>
 
     <button id="submit-btn" onclick="submitRequest()">Request this track 🤘</button>
-    <div style="font-size:11px;color:var(--grey);margin:8px 0 0;text-align:center;letter-spacing:0.3px">Tracks up to 7 minutes</div>
     <div id="form-msg"></div>
 
     <div id="gods-notice">
@@ -822,6 +821,50 @@ function showPurchaseToast(msg) {
 
 const MAX_TRACK_MS = 7 * 60 * 1000; // no tracks over 7 minutes (same as the Banshee)
 
+// ── NO SONGS OVER 7 MINUTES: look up each listed song's length and take long ones off the list ──
+const DUR = (() => { try { return JSON.parse(localStorage.getItem('rb_dur') || '{}'); } catch(e) { return {}; } })();
+async function songMs(title, artist) {
+  const k = (artist + '|' + title).toLowerCase();
+  if (k in DUR) return DUR[k];
+  let ms = 0;
+  try {
+    const r = await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&api_key=${CONFIG.lastfm_key}&format=json`);
+    ms = parseInt((await r.json())?.track?.duration || '0', 10) || 0;
+  } catch(e) { return 0; }
+  DUR[k] = ms;
+  try { const keys = Object.keys(DUR); if (keys.length > 800) keys.slice(0, 200).forEach(x => delete DUR[x]); localStorage.setItem('rb_dur', JSON.stringify(DUR)); } catch(e) {}
+  return ms;
+}
+async function hideLongSongs(el, items, id) {
+  const rows = [...el.querySelectorAll('.dd-item[data-idx]')];
+  let i = 0;
+  const work = async () => {
+    while (i < rows.length) {
+      const row = rows[i++], it = items[+row.dataset.idx]; if (!it) continue;
+      const tmp = document.createElement('div'); tmp.innerHTML = it.main; const title = tmp.textContent;
+      tmp.innerHTML = it.sub || ''; const artist = tmp.textContent || (id === 'dd-track' ? chosenArtist : '');
+      if (!artist) continue;
+      if (await songMs(title, artist) > MAX_TRACK_MS) row.remove();
+    }
+  };
+  await Promise.all([work(), work(), work(), work()]);
+}
+window.songMs = songMs;
+// Spotify's own length (exact, the version that would actually play); Last.fm's can be wrong
+const SPOT = {};
+async function spotifyMs(title, artist) {
+  const k = (artist + '|' + title).toLowerCase(); if (k in SPOT) return SPOT[k];
+  try {
+    const r = await fetch(`${CONFIG.spotify_worker_url}/search?track=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`);
+    const d = await r.json(); SPOT[k] = (d && d.duration) || 0;
+  } catch(e) { return 0; }
+  return SPOT[k];
+}
+async function songTooLong(title, artist) {
+  const sp = await spotifyMs(title, artist);
+  return sp ? sp > MAX_TRACK_MS : (await songMs(title, artist)) > MAX_TRACK_MS;
+}
+
 // ── PRICES + SAVED PICK (pay when sending, like the Banshee) ──
 function paintPrices() {
   const el = document.getElementById('price-strip'); if (!el) return;
@@ -934,7 +977,7 @@ function updateBadge() {
   document.getElementById('rl-text1').textContent = paidOnly
     ? 'Requests are ' + (t1 ? 'from ' + t1.priceLabel + ' for ' + t1.extraRequests + ', plus ' + t1.extraVotes + ' double votes' : 'paid') + '. Voting on the board is free.'
     : "You've used all your requests for this hour.";
-  document.getElementById('rl-text2').textContent = paidOnly ? 'Tracks up to 7 minutes.' : 'Check back when the clock resets, or get more now.';
+  document.getElementById('rl-text2').textContent = paidOnly ? '' : 'Check back when the clock resets, or get more now.';
   document.getElementById('countdown').style.display = paidOnly ? 'none' : '';
   const gmb = document.querySelector('#rate-limit-screen .get-more-btn'); if (gmb) gmb.textContent = paidOnly ? 'GET REQUESTS & VOTES' : 'GET MORE REQUESTS & VOTES';
   if (show && !paidOnly) startCountdown(getBucket('rb_req').windowStart);
@@ -1140,6 +1183,7 @@ window.onTrackType = function() {
 };
 
 function pickTrack(name) {
+  songTooLong(name, chosenArtist).then(long => { if (long && chosenTrack === name) { resetTrack(); showMsg('SORRY · THAT ONE’S OVER 7 MINUTES', 'err'); } });
   chosenTrack = name;
   closeDD('dd-track');
   const inpTrack = document.getElementById('inp-track');
@@ -1186,6 +1230,7 @@ window.onSongType = function() {
 };
 
 function pickSong(name, artist) {
+  songTooLong(name, artist).then(long => { if (long && chosenSong === name) { resetSong(); showMsg('SORRY · THAT ONE’S OVER 7 MINUTES', 'err'); } });
   chosenSong = name;
   chosenSongArtist = artist;
   closeDD('dd-song');
@@ -1240,7 +1285,7 @@ window.submitRequest = async function() {
     artData = await infoRes.json();
   } catch(e) {}
   const durMs = parseInt(artData?.track?.duration || '0', 10) || 0;
-  if (durMs > MAX_TRACK_MS) { showMsg('SORRY · NO TRACKS OVER 7 MIN', 'err'); return; }
+  if (durMs > MAX_TRACK_MS || await songTooLong(title, artist)) { showMsg('SORRY · THAT ONE’S OVER 7 MINUTES', 'err'); return; }
   useRequest();
   try {
     // Fetch album art from Last.fm before saving
@@ -1388,6 +1433,7 @@ async function lfSearch(type, q, ddId, cb) {
 // ── DROPDOWN HELPERS ──
 function renderDD(id, items, header) {
   const el = document.getElementById(id);
+  if (id === 'dd-track' || id === 'dd-song') setTimeout(() => hideLongSongs(el, items, id), 0);
   el.innerHTML = (header ? '<div class="dd-header">' + header + '</div>' : '') +
     items.map((item, i) =>
       '<div class="dd-item" data-idx="' + i + '">' +
