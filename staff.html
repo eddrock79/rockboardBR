@@ -93,7 +93,7 @@
   .add-row span{flex:1}.add-row small{display:block;color:rgba(240,237,232,0.45)}
   .add-row .ctrl-btn{padding:10px 16px;font-size:17px;background:transparent;border-color:var(--green);color:var(--green)}
   #section-more #controls-bar{border:0;background:none;padding:0}
-  #auto-approve-btn,#auto-queue-btn{display:none!important} /* always on: no buttons (2026-11-23) */
+  #auto-approve-btn,#auto-queue-btn,#queue-top-btn{display:none!important} /* always on: no buttons (2026-11-23) */
   .more-k{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.4);margin:18px 0 8px}
   @media(max-width:700px){.tab{padding:14px 4px;font-size:15px;letter-spacing:1px}#np-title{font-size:24px}.np-card img{width:72px;height:72px}}
   .list-section.show{display:block}
@@ -254,6 +254,14 @@
     <input id="add-inp" type="text" placeholder="Search for an artist…" autocomplete="off" oninput="staffAddSearch()">
     <div id="add-msg"></div>
     <div id="add-list"></div>
+    <div class="list-label" style="padding:26px 0 10px">GIVE A GUEST FREE REQUESTS</div>
+    <div style="font-family:var(--font-body);font-size:14px;color:rgba(240,237,232,0.55);margin:0 0 10px">Makes a one-use code. The guest types it on their phone under “Got a code from the bar?”. Works until 6am.</div>
+    <div class="np-btns" style="grid-template-columns:1fr 1fr 1fr;margin-top:0">
+      <button class="ctrl-btn np-ghost" onclick="giveFree(1)">1 FREE</button>
+      <button class="ctrl-btn np-ghost" onclick="giveFree(2)">2 FREE</button>
+      <button class="ctrl-btn np-ghost" onclick="giveFree(3)">3 FREE</button>
+    </div>
+    <div id="gift-out" style="text-align:center;margin:10px 0 30px"></div>
   </div>
   <div class="list-section show" id="section-pending">
     <div class="list-label" style="display:flex;justify-content:space-between;align-items:center">
@@ -1230,6 +1238,29 @@ window.blockArtist = async function() {
   const low = name.toLowerCase();
   for (const t of allTracks.filter(t => (t.artist || '').toLowerCase().includes(low))) { try { await deleteDoc(doc(db, C_TRACKS, t.id)); } catch(e) {} }
   inp.value = ''; showStaffToast('🚫 BLOCKED: ' + name); renderBlockedArtists();
+};
+
+// ── FREE REQUEST CODES (br_settings/gifts; only a hash of each code is stored) ──
+async function giftHash(code) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('brgift:' + String(code).trim().toUpperCase()));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 24);
+}
+
+function next6am() { const d = new Date(); if (d.getHours() >= 6) d.setDate(d.getDate() + 1); d.setHours(6, 0, 0, 0); return d.getTime(); }
+window.giveFree = async function(n) {
+  const out = document.getElementById('gift-out');
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let code = '';
+  const r = crypto.getRandomValues(new Uint32Array(5)); for (const x of r) code += A[x % A.length];
+  try {
+    const snap = await getDoc(doc(db, C_SETTINGS, 'gifts'));
+    const now = Date.now(), codes = {};
+    Object.entries((snap.exists() && snap.data().codes) || {}).forEach(([k, v]) => { if (v && v.exp > now) codes[k] = v; });
+    codes[await giftHash(code)] = { n, exp: next6am(), used: false, at: now };
+    await setDoc(doc(db, C_SETTINGS, 'gifts'), { codes });
+    out.innerHTML = `<div style="font-family:var(--font-pixel);font-size:18px;letter-spacing:3px;color:var(--green)">${n} FREE REQUEST${n > 1 ? 'S' : ''} · TELL THE GUEST:</div>
+      <div style="font-family:var(--font-head);font-size:64px;letter-spacing:10px;color:var(--white);line-height:1.1">${code}</div>
+      <div style="font-family:var(--font-body);font-size:13px;color:rgba(240,237,232,0.5)">One use · until 6am</div>`;
+  } catch(e) { out.innerHTML = '<div style="color:#ff6666;font-family:var(--font-pixel);font-size:18px">COULDN’T MAKE A CODE · TRY AGAIN</div>'; }
 };
 </script>
 </body>

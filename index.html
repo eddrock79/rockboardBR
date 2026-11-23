@@ -475,6 +475,12 @@
     <div class="rl-text" id="rl-text1">You've used all your requests for this hour.</div>
     <div id="countdown">-</div>
         <div class="rl-text" id="rl-text2">Check back when the clock resets, or get more now.</div>
+    <div style="margin:20px auto 0;max-width:320px">
+      <div class="rl-text" style="margin-bottom:8px">Got a code from the bar?</div>
+      <div style="display:flex;gap:8px"><input id="gift-inp" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="CODE" style="flex:1;min-width:0;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;font-size:20px;letter-spacing:4px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')redeemGift()">
+      <button style="padding:12px 18px;border-radius:8px;border:none;background:#1ED760;color:#000;font-weight:800" onclick="redeemGift()">USE</button></div>
+      <div id="gift-msg" class="rl-text" style="min-height:20px;margin-top:8px"></div>
+    </div>
     <button class="get-more-btn" style="display:block;margin:22px auto 0;font-size:15px;padding:15px 24px;background:#6c2bd9;color:#fff;border:none" onclick="openTopUpModal()">GET MORE REQUESTS &amp; VOTES</button>
   </div>
 
@@ -800,6 +806,30 @@ function showPurchaseToast(msg) {
 })();
 
 const MAX_TRACK_MS = 7 * 60 * 1000; // no tracks over 7 minutes (same as the Banshee)
+async function giftHash(code) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('brgift:' + String(code).trim().toUpperCase()));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 24);
+}
+
+window.redeemGift = async function() {
+  const inp = document.getElementById('gift-inp'), msg = document.getElementById('gift-msg');
+  const code = inp.value.trim().toUpperCase(); if (code.length < 4) { msg.textContent = 'Type the code from the bar'; return; }
+  msg.textContent = 'Checking…';
+  try {
+    const fs = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const ref = fs.doc(db, 'br_settings', 'gifts'), h = await giftHash(code);
+    const n = await fs.runTransaction(db, async tx => {
+      const s = await tx.get(ref); const c = s.exists() && s.data().codes && s.data().codes[h];
+      if (!c || c.used || c.exp < Date.now()) return 0;
+      tx.update(ref, { [`codes.${h}.used`]: true, [`codes.${h}.usedBy`]: DEVICE_ID, [`codes.${h}.usedAt`]: Date.now() });
+      return { n: c.n, exp: c.exp };
+    });
+    if (!n) { msg.textContent = 'That code isn’t valid or has been used'; return; }
+    localStorage.setItem('rb_gift', JSON.stringify({ left: giftLeft() + n.n, exp: n.exp }));
+    inp.value = ''; msg.textContent = ''; updateBadge();
+    showMsg('🎁 ' + n.n + ' FREE REQUEST' + (n.n > 1 ? 'S' : '') + ' ADDED', 'ok');
+  } catch(e) { console.warn(e); msg.textContent = 'Couldn’t check the code · try again'; }
+};
 
 // ── BLOCKED ARTISTS + BANNED SONGS (staff page BLOCKED tab) ──
 // artists: br_settings/blocked {artists:[...]}; songs: the shared 'banned' collection
@@ -831,13 +861,18 @@ function getBucket(key) {
 function saveBucket(k,d) { try{localStorage.setItem(k,JSON.stringify(d))}catch(e){} }
 function requestLimit() { return CONFIG.maxRequestsPerHour + (ENTITLEMENT.extraRequests || 0); }
 function voteLimit()    { return CONFIG.maxVotesPerHour    + (ENTITLEMENT.extraVotes    || 0); }
-function canRequest()  { return getBucket('rb_req').count  < requestLimit(); }
+function giftLeft() { try { const g = JSON.parse(localStorage.getItem('rb_gift') || 'null'); return g && g.exp > Date.now() ? (g.left || 0) : 0; } catch(e) { return 0; } }
+function canRequest()  { return getBucket('rb_req').count  < requestLimit() || giftLeft() > 0; }
 function canVote(id)   { const d=getBucket('rb_vote'); return d.count<voteLimit() && !d.used[id]; }
-function useRequest()  { const d=getBucket('rb_req');  d.count++; saveBucket('rb_req',d); }
+function useRequest()  {
+  const d=getBucket('rb_req');
+  if (d.count < requestLimit()) { d.count++; saveBucket('rb_req',d); return; }
+  try { const g = JSON.parse(localStorage.getItem('rb_gift') || 'null'); if (g && g.left > 0) { g.left--; localStorage.setItem('rb_gift', JSON.stringify(g)); } } catch(e) {}
+}
 function useVote(id)   { const d=getBucket('rb_vote'); d.count++; d.used[id]=true; saveBucket('rb_vote',d); }
 function hasVoted(id)  { return !!getBucket('rb_vote').used[id]; }
 function votesLeft()   { return Math.max(0, voteLimit()    - getBucket('rb_vote').count); }
-function reqLeft()     { return Math.max(0, requestLimit() - getBucket('rb_req').count); }
+function reqLeft()     { return Math.max(0, requestLimit() - getBucket('rb_req').count) + giftLeft(); }
 
 function updateBadge() {
   const vl = votesLeft();
