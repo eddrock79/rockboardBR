@@ -11,7 +11,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ROCKBOARD · Staff</title>
-<link href="https://fonts.googleapis.com/css2?family=VT323&family=Bebas+Neue&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Bebas+Neue&family=Inter:wght@300;400;600;700&family=Outfit:wght@400;500;600;700;800&family=Alfa+Slab+One&display=swap" rel="stylesheet">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{--bg:#0a0a0a;--accent:#8B0000;--green:#39FF14;--amber:#FFB347;--white:#f0ede8;--card:rgba(20,10,10,0.9);--font-pixel:'VT323',monospace;--font-head:'Bebas Neue',sans-serif;--font-body:'Inter',sans-serif}
@@ -168,13 +168,44 @@
   .w-votes{font-family:var(--font-pixel);font-size:16px;color:rgba(240,237,232,0.4);letter-spacing:3px}
   #winner-close{margin-top:16px;font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);padding:10px 24px;border-radius:4px;background:transparent;color:rgba(240,237,232,0.4);transition:all 0.2s}
   #winner-close:hover{border-color:var(--amber);color:var(--amber)}
+
+  /* ── Black Rose Staff Hub look ── */
+  :root{--hub-bg:#0a0a0b;--hub-surface:#111113;--hub-surface2:#1b1b1e;--hub-border:#2a2a2e;--hub-gold:#e3b34a;--hub-text:#ffffff;--hub-muted:#a9a9b2}
+  body{background:var(--hub-bg)!important;font-family:"Outfit",sans-serif!important;color:var(--hub-text)}
+  #staff-header{background:var(--hub-bg)!important;border-bottom:3px solid var(--hub-gold)!important;padding:12px 20px!important}
+  #staff-header .hub-brand{display:flex;align-items:center;gap:14px}
+  #staff-header .hub-brand img{height:52px;width:auto;display:block}
+  #staff-header h1{font-family:"Alfa Slab One",Georgia,serif!important;font-size:24px!important;letter-spacing:.5px!important;color:#fff!important;margin:0}
+  #staff-header .sub{font-family:"Outfit",sans-serif!important;font-size:13px!important;letter-spacing:.5px!important;color:var(--hub-muted)!important}
+  #tabs{display:flex!important;gap:8px;padding:12px 16px!important;background:var(--hub-bg)!important;border-bottom:1px solid var(--hub-border)!important;flex-wrap:wrap}
+  .tab{flex:1 1 auto!important;border:1px solid var(--hub-border)!important;border-radius:12px!important;background:var(--hub-surface)!important;color:#fff!important;font-family:"Outfit",sans-serif!important;font-weight:700!important;font-size:15px!important;letter-spacing:.3px!important;padding:12px 10px!important}
+  .tab.active{background:var(--hub-gold)!important;color:#111!important;border-color:var(--hub-gold)!important}
+  .tab .badge{background:#c0392b!important;color:#fff!important}
+  #tab-banned{color:#ff8a80!important}#tab-banned.active{color:#111!important}
+  .list-section{padding:16px 20px!important}
+  .list-label{font-family:"Outfit",sans-serif!important;font-weight:700!important;font-size:13px!important;letter-spacing:1.5px!important;color:var(--hub-muted)!important}
+  .np-card,.request-card,.approved-card{background:var(--hub-surface)!important;border:1px solid var(--hub-border)!important;border-radius:14px!important}
+  .np-k{font-family:"Outfit",sans-serif!important;font-weight:700!important;font-size:13px!important;letter-spacing:1.5px!important;color:var(--hub-gold)!important}
+  #np-title{font-family:"Alfa Slab One",Georgia,serif!important;font-size:24px!important}
+  #np-time,#np-msg,#add-msg,.more-k{font-family:"Outfit",sans-serif!important;letter-spacing:.5px!important}
+  .np-bar i{background:var(--hub-gold)!important}
+  .ctrl-btn{font-family:"Outfit",sans-serif!important;font-weight:700!important;letter-spacing:.5px!important;border-radius:12px!important;font-size:15px!important}
+  .np-btns .ctrl-btn{font-size:18px!important}
+  .np-skip{background:var(--hub-gold)!important;border-color:var(--hub-gold)!important;color:#111!important}
+  .np-ghost{background:var(--hub-surface)!important;border-color:var(--hub-border)!important;color:#fff!important}
+  .add-modes .ctrl-btn.on{background:var(--hub-gold)!important;border-color:var(--hub-gold)!important;color:#111!important}
+  .add-row .ctrl-btn{border-color:var(--hub-gold)!important;color:var(--hub-gold)!important}
+  #add-inp,#ba-inp,#browse-add-inp,#browse-img,#browse-paste{background:var(--hub-surface2)!important;border:1px solid var(--hub-border)!important;border-radius:10px!important;font-family:"Outfit",sans-serif!important}
+  #pin-screen h1{font-family:"Alfa Slab One",Georgia,serif!important}
+  #pin-screen .hub-logo{height:90px;width:auto;display:block;margin:0 auto 10px}
+  @media(max-width:700px){#staff-header .hub-brand img{height:40px}#staff-header h1{font-size:18px!important}.tab{font-size:13px!important;padding:10px 6px!important}}
 </style>
 </head>
 <body>
 
 <!-- PIN SCREEN -->
 <div id="pin-screen">
-  <div><h1>ROCKBOARD</h1><p style="text-align:center;margin-top:4px;">STAFF ACCESS</p></div>
+  <div><img class="hub-logo" src="assets/Black-Rose-Logo.png" alt="The Black Rose"><h1>ROCKBOARD</h1><p style="text-align:center;margin-top:4px;">STAFF ACCESS</p></div>
   <div id="pin-dots">
     <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
     <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
@@ -200,7 +231,7 @@
 <!-- STAFF APP -->
 <div id="staff-app">
   <div id="staff-header">
-    <div><h1 id="s-venue">STAFF · ROCKBOARD</h1><div class="sub" id="s-sub">THE BLACK ROSE</div></div>
+    <div class="hub-brand"><img src="assets/Black-Rose-Logo.png" alt="The Black Rose"><div><h1 id="s-venue">STAFF · ROCKBOARD</h1><div class="sub" id="s-sub">THE BLACK ROSE</div></div></div>
     <div id="header-right">
       <button class="ctrl-btn lock-btn" onclick="lock()">LOCK</button>
     </div>
@@ -378,7 +409,7 @@ const C_SETTINGS = 'br_settings';
 const C_ALLTIME  = 'br_alltime';
 
 document.getElementById('s-sub').textContent = CONFIG.venueName;
-document.getElementById('s-venue').textContent = 'STAFF · ' + CONFIG.venueName;
+document.getElementById('s-venue').textContent = 'Rockboard · Staff';
 document.title = 'Staff · ' + CONFIG.venueName;
 
 // ── PERSISTENT LOGIN ──
