@@ -19,16 +19,16 @@
 
   #pin-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:40px 20px}
   #pin-screen h1{font-family:var(--font-head);font-size:42px;letter-spacing:6px}
-  #pin-screen p{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.4)}
+  #pin-screen p{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.85)}
   #pin-dots{display:flex;gap:16px}
   .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid rgba(139,0,0,0.5);background:transparent;transition:background 0.15s}
   .pin-dot.filled{background:var(--accent);border-color:var(--accent)}
   #pin-keypad{display:grid;grid-template-columns:repeat(3,72px);gap:10px}
   .pin-key{height:64px;background:var(--card);border:1px solid rgba(139,0,0,0.3);border-radius:8px;color:var(--white);font-family:var(--font-head);font-size:28px;cursor:pointer;transition:all 0.15s;-webkit-appearance:none}
   .pin-key:active{background:rgba(139,0,0,0.4);transform:scale(0.96)}
-  .pin-key.clear{font-size:18px;color:rgba(240,237,232,0.4)}
+  .pin-key.clear{font-size:18px;color:rgba(240,237,232,0.85)}
   #pin-error{font-family:var(--font-pixel);font-size:16px;color:#ff4444;letter-spacing:3px;min-height:24px;text-align:center}
-  #stay-logged-in{display:flex;align-items:center;gap:10px;font-family:var(--font-pixel);font-size:15px;letter-spacing:2px;color:rgba(240,237,232,0.4);cursor:pointer}
+  #stay-logged-in{display:flex;align-items:center;gap:10px;font-family:var(--font-pixel);font-size:15px;letter-spacing:2px;color:rgba(240,237,232,0.85);cursor:pointer}
   #stay-logged-in input{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
 
   #staff-app{display:none}
@@ -42,13 +42,13 @@
   .ctrl-btn{padding:12px 22px;border-radius:6px;border:1px solid;font-family:var(--font-pixel);font-size:18px;letter-spacing:2px;cursor:pointer;transition:all 0.15s;-webkit-appearance:none}
   .ctrl-btn:active{transform:scale(0.97)}
   .ctrl-btn.tshirt-on{background:rgba(255,179,71,0.15);border-color:rgba(255,179,71,0.5);color:var(--amber)}
-  .ctrl-btn.tshirt-off{background:rgba(20,10,10,0.5);border-color:rgba(255,255,255,0.1);color:rgba(240,237,232,0.3)}
+  .ctrl-btn.tshirt-off{background:rgba(20,10,10,0.5);border-color:rgba(255,255,255,0.1);color:rgba(240,237,232,0.85)}
   .ctrl-btn.winner-btn{background:rgba(57,255,20,0.1);border-color:rgba(57,255,20,0.4);color:var(--green)}
   .ctrl-btn.queue-ctrl-btn{background:rgba(30,215,96,0.1);border-color:rgba(30,215,96,0.4);color:#1ED760}
   .ctrl-btn.auto-queue-btn{background:rgba(30,215,96,0.05);border-color:rgba(30,215,96,0.2);color:rgba(30,215,96,0.4)}
   .ctrl-btn.auto-queue-btn.on{background:rgba(30,215,96,0.18);border-color:rgba(30,215,96,0.6);color:#1ED760}
   .ctrl-btn.clear-btn{background:rgba(255,68,68,0.1);border-color:rgba(255,68,68,0.3);color:#ff6666}
-  .ctrl-btn.lock-btn{background:rgba(20,10,10,0.5);border-color:rgba(255,255,255,0.1);color:rgba(240,237,232,0.3)}
+  .ctrl-btn.lock-btn{background:rgba(20,10,10,0.5);border-color:rgba(255,255,255,0.1);color:rgba(240,237,232,0.85)}
   .ctrl-btn.approve-btn{background:rgba(57,255,20,0.08);border-color:rgba(57,255,20,0.25);color:rgba(57,255,20,0.5)}
   .ctrl-btn.approve-btn.on{background:rgba(57,255,20,0.18);border-color:rgba(57,255,20,0.6);color:var(--green)}
   .ctrl-btn.queue-ctrl-btn{background:rgba(30,215,96,0.1);border-color:rgba(30,215,96,0.4);color:#1ED760}
@@ -66,7 +66,7 @@
   .approve-all-btn:active{background:rgba(57,255,20,0.25)}
 
   #tabs{display:flex;border-bottom:2px solid rgba(139,0,0,0.25);background:rgba(5,0,0,0.3)}
-  .tab{flex:1;padding:16px;font-family:var(--font-pixel);font-size:18px;letter-spacing:3px;text-align:center;color:rgba(240,237,232,0.3);cursor:pointer;border-bottom:3px solid transparent;transition:all 0.15s}
+  .tab{flex:1;padding:16px;font-family:var(--font-pixel);font-size:18px;letter-spacing:3px;text-align:center;color:rgba(240,237,232,0.85);cursor:pointer;border-bottom:3px solid transparent;transition:all 0.15s}
   .tab.active{color:var(--white);border-bottom-color:var(--accent);background:rgba(139,0,0,0.08)}
   .tab .badge{display:inline-block;background:var(--accent);color:var(--white);border-radius:10px;font-size:13px;padding:2px 8px;margin-left:6px;vertical-align:middle}
 
@@ -78,26 +78,26 @@
   #np-title{font-family:var(--font-head);font-size:30px;letter-spacing:1px;line-height:1.05;color:var(--white)}
   #np-artist{font-family:var(--font-body);font-size:15px;color:rgba(240,237,232,0.6);margin-top:2px}
   .np-bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.1);margin-top:10px;overflow:hidden}.np-bar i{display:block;height:100%;width:0;background:var(--green)}
-  #np-time{font-family:var(--font-pixel);font-size:16px;letter-spacing:2px;color:rgba(240,237,232,0.45);margin-top:4px}
+  #np-time{font-family:var(--font-pixel);font-size:16px;letter-spacing:2px;color:rgba(240,237,232,0.85);margin-top:4px}
   .np-btns{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:14px 0 6px}
   .np-btns .ctrl-btn{padding:18px 10px;font-size:22px}
   .np-skip{background:var(--accent);border-color:#c00;color:#fff}
-  .np-ghost{background:transparent;border-color:rgba(240,237,232,0.3);color:var(--white)}
+  .np-ghost{background:transparent;border-color:rgba(240,237,232,0.85);color:var(--white)}
   #np-msg,#add-msg{font-family:var(--font-pixel);font-size:17px;letter-spacing:2px;min-height:24px;color:var(--green)}
   .up-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(139,0,0,0.15);font-family:var(--font-body)}
-  .up-row b{font-family:var(--font-pixel);font-size:20px;color:var(--amber);width:28px}.up-row span{flex:1}.up-row small{color:rgba(240,237,232,0.45)}
-  .add-modes{display:flex;gap:8px;margin-bottom:12px}.add-modes .ctrl-btn{flex:1;background:transparent;border-color:rgba(240,237,232,0.25);color:rgba(240,237,232,0.6)}
+  .up-row b{font-family:var(--font-pixel);font-size:20px;color:var(--amber);width:28px}.up-row span{flex:1}.up-row small{color:rgba(240,237,232,0.85)}
+  .add-modes{display:flex;gap:8px;margin-bottom:12px}.add-modes .ctrl-btn{flex:1;background:transparent;border-color:rgba(240,237,232,0.85);color:rgba(240,237,232,0.6)}
   .add-modes .ctrl-btn.on{background:var(--accent);border-color:#c00;color:#fff}
   #add-inp{width:100%;padding:14px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:17px}
   .add-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(139,0,0,0.15);font-family:var(--font-body)}
-  .add-row span{flex:1}.add-row small{display:block;color:rgba(240,237,232,0.45)}
+  .add-row span{flex:1}.add-row small{display:block;color:rgba(240,237,232,0.85)}
   .add-row .ctrl-btn{padding:10px 16px;font-size:17px;background:transparent;border-color:var(--green);color:var(--green)}
   #section-more #controls-bar{border:0;background:none;padding:0}
   #auto-approve-btn,#auto-queue-btn,#queue-top-btn{display:none!important} /* always on: no buttons (2026-11-23) */
-  .more-k{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.4);margin:18px 0 8px}
+  .more-k{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.85);margin:18px 0 8px}
   @media(max-width:700px){.tab{padding:14px 4px;font-size:15px;letter-spacing:1px}#np-title{font-size:24px}.np-card img{width:72px;height:72px}}
   .list-section.show{display:block}
-  .list-label{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.4);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+  .list-label{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.85);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
   .list-label span{color:var(--amber)}
 
   .request-card{
@@ -114,12 +114,12 @@
   /* LEFT — track info */
   .rc-info{flex:1;min-width:0}
   .rc-track{font-family:var(--font-head);font-size:28px;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1}
-  .rc-artist{font-size:15px;color:rgba(240,237,232,0.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+  .rc-artist{font-size:15px;color:rgba(240,237,232,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
   .rc-badge{font-family:var(--font-pixel);font-size:14px;color:var(--amber);letter-spacing:1px;margin-top:3px}
 
   /* MIDDLE — votes */
   .rc-votes{font-family:var(--font-pixel);font-size:38px;color:var(--white);min-width:52px;text-align:center;line-height:1;flex-shrink:0}
-  .rc-votes-label{font-family:var(--font-pixel);font-size:12px;color:rgba(240,237,232,0.25);letter-spacing:2px;text-align:center;margin-top:2px}
+  .rc-votes-label{font-family:var(--font-pixel);font-size:12px;color:rgba(240,237,232,0.85);letter-spacing:2px;text-align:center;margin-top:2px}
 
   /* RIGHT — actions */
   .rc-actions{display:flex;gap:8px;flex-shrink:0;align-items:center}
@@ -132,17 +132,17 @@
 
   .approved-card{background:var(--card);border:1px solid rgba(57,255,20,0.15);border-left:4px solid rgba(57,255,20,0.3);border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:8px;display:flex;align-items:center;gap:16px}
   .approved-card.top-track{border-left-color:var(--amber);border-color:rgba(255,179,71,0.3);background:rgba(30,18,0,0.8)}
-  .ac-rank{font-family:var(--font-head);font-size:36px;color:rgba(240,237,232,0.12);min-width:52px;text-align:center;line-height:1;flex-shrink:0}
+  .ac-rank{font-family:var(--font-head);font-size:36px;color:rgba(240,237,232,0.85);min-width:52px;text-align:center;line-height:1;flex-shrink:0}
   .approved-card.top-track .ac-rank{color:var(--amber)}
   .ac-details{flex:1;min-width:0}
   .ac-title{font-family:var(--font-head);font-size:26px;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1}
   .approved-card.top-track .ac-title{color:var(--amber)}
-  .ac-artist{font-size:14px;color:rgba(240,237,232,0.5);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ac-artist{font-size:14px;color:rgba(240,237,232,0.85);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ac-requester{font-family:var(--font-pixel);font-size:15px;color:rgba(200,60,60,0.9);letter-spacing:1px;margin-top:3px}
   .approved-card.top-track .ac-requester{color:rgba(255,179,71,0.7)}
   .ac-meta{font-family:var(--font-pixel);font-size:26px;color:var(--white);text-align:right;min-width:60px;flex-shrink:0}
   .approved-card.top-track .ac-meta{color:var(--amber)}
-  .ac-meta small{font-size:10px;color:rgba(240,237,232,0.3);display:block;letter-spacing:2px}
+  .ac-meta small{font-size:10px;color:rgba(240,237,232,0.85);display:block;letter-spacing:2px}
   .ac-ditch{background:transparent;border:1px solid rgba(139,0,0,0.3);border-radius:5px;padding:6px 10px;color:rgba(255,68,68,0.5);font-family:var(--font-pixel);font-size:13px;cursor:pointer;transition:all 0.15s;-webkit-appearance:none}
   .ac-ditch:active{background:rgba(139,0,0,0.3);color:#ff4444}
   .spotify-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;background:rgba(30,215,96,0.15);border:1px solid rgba(30,215,96,0.4);border-radius:5px;color:#1ED760;font-size:18px;text-decoration:none;flex-shrink:0;transition:all 0.15s}
@@ -154,7 +154,7 @@
   .queue-btn:active{background:rgba(30,215,96,0.4);transform:scale(0.95)}
   .played-btn{padding:8px 12px;background:rgba(255,179,71,0.15);border:1px solid rgba(255,179,71,0.4);border-radius:5px;color:var(--amber);font-family:var(--font-pixel);font-size:13px;letter-spacing:1px;cursor:pointer;flex-shrink:0;transition:all 0.15s;-webkit-appearance:none}
   .played-btn:active{background:rgba(255,179,71,0.3);transform:scale(0.95)}
-  .empty-state{text-align:center;padding:40px 20px;font-family:var(--font-pixel);font-size:18px;color:rgba(240,237,232,0.25);letter-spacing:3px;line-height:1.8}
+  .empty-state{text-align:center;padding:40px 20px;font-family:var(--font-pixel);font-size:18px;color:rgba(240,237,232,0.85);letter-spacing:3px;line-height:1.8}
   .rc-spotify{margin-bottom:10px}
   .spotify-preview-btn{display:block;text-align:center;padding:10px;background:rgba(30,215,96,0.08);border:1px solid rgba(30,215,96,0.25);border-radius:6px;color:#1ED760;font-family:var(--font-pixel);font-size:15px;letter-spacing:2px;text-decoration:none;transition:all 0.15s}
   .spotify-preview-btn:active{background:rgba(30,215,96,0.2)}
@@ -165,11 +165,14 @@
   .w-track{font-family:var(--font-head);font-size:38px;color:var(--white)}
   .w-artist{font-size:18px;color:rgba(240,237,232,0.6)}
   .w-quote{font-family:var(--font-pixel);font-size:24px;color:var(--green);max-width:600px;line-height:1.5}
-  .w-votes{font-family:var(--font-pixel);font-size:16px;color:rgba(240,237,232,0.4);letter-spacing:3px}
-  #winner-close{margin-top:16px;font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);padding:10px 24px;border-radius:4px;background:transparent;color:rgba(240,237,232,0.4);transition:all 0.2s}
+  .w-votes{font-family:var(--font-pixel);font-size:16px;color:rgba(240,237,232,0.85);letter-spacing:3px}
+  #winner-close{margin-top:16px;font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);padding:10px 24px;border-radius:4px;background:transparent;color:rgba(240,237,232,0.85);transition:all 0.2s}
   #winner-close:hover{border-color:var(--amber);color:var(--amber)}
 
   /* ── Black Rose Staff Hub look ── */
+  :root{--font-pixel:"Outfit",sans-serif}   /* the old pixel font is hard to read small */
+  .list-label,.empty-state,.more-k,#np-time,.up-row small{color:#c9c9d1!important}
+  .empty-state{font-size:15px!important}
   :root{--hub-bg:#0a0a0b;--hub-surface:#111113;--hub-surface2:#1b1b1e;--hub-border:#2a2a2e;--hub-gold:#e3b34a;--hub-text:#ffffff;--hub-muted:#a9a9b2}
   body{background:var(--hub-bg)!important;font-family:"Outfit",sans-serif!important;color:var(--hub-text)}
   #staff-header{background:var(--hub-bg)!important;border-bottom:3px solid var(--hub-gold)!important;padding:12px 20px!important}
@@ -242,18 +245,18 @@
     <button class="ctrl-btn queue-ctrl-btn" id="queue-top-btn" onclick="queueTopTrack()" style="display:none">🎵 QUEUE NO.1</button>
     <button class="ctrl-btn auto-queue-btn on" id="auto-queue-btn" disabled style="display:none;cursor:default">⏱ AUTO-QUEUE: ALWAYS ON</button>
     <div id="interval-wrap" style="display:none;align-items:center;gap:6px">
-      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.4)">EVERY</span>
+      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.85)">EVERY</span>
       <input type="number" id="interval-input" min="5" max="60" value="5"
         style="width:52px;background:rgba(0,0,0,0.4);border:1px solid rgba(30,215,96,0.3);border-radius:4px;padding:8px 6px;color:#1ED760;font-family:var(--font-pixel);font-size:18px;letter-spacing:2px;text-align:center;outline:none;-webkit-appearance:none"
         onchange="updateInterval(this.value)">
-      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.4)">MINS</span>
+      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.85)">MINS</span>
     </div>
     <div id="offset-wrap" style="display:none;align-items:center;gap:6px;margin-left:8px;padding-left:12px;border-left:1px solid rgba(255,255,255,0.1)">
-      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.4)">VIDEO OFFSET</span>
+      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.85)">VIDEO OFFSET</span>
       <input type="number" id="offset-input" min="-30" max="30" value="0"
         style="width:56px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,179,71,0.3);border-radius:4px;padding:8px 6px;color:var(--amber);font-family:var(--font-pixel);font-size:18px;letter-spacing:2px;text-align:center;outline:none;-webkit-appearance:none"
         onchange="updateVideoOffset(this.value)">
-      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.4)">SECS</span>
+      <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.85)">SECS</span>
     </div>
     <button class="ctrl-btn winner-btn" onclick="revealWinner()">🏆 REVEAL WINNER</button>
     <button class="ctrl-btn clear-btn" onclick="clearNight()">↺ NEW NIGHT</button>
@@ -286,7 +289,7 @@
     <div id="add-msg"></div>
     <div id="add-list"></div>
     <div class="list-label" style="padding:26px 0 10px">GIVE A GUEST FREE REQUESTS</div>
-    <div style="font-family:var(--font-body);font-size:14px;color:rgba(240,237,232,0.55);margin:0 0 10px">Makes a one-use code. The guest types it on their phone under “Got a code from the bar?”. Works until 6am.</div>
+    <div style="font-family:var(--font-body);font-size:14px;color:rgba(240,237,232,0.85);margin:0 0 10px">Makes a one-use code. The guest types it on their phone under “Got a code from the bar?”. Works until 6am.</div>
     <div class="np-btns" style="grid-template-columns:1fr 1fr 1fr;margin-top:0">
       <button class="ctrl-btn np-ghost" onclick="giveFree(1)">1 FREE</button>
       <button class="ctrl-btn np-ghost" onclick="giveFree(2)">2 FREE</button>
@@ -305,12 +308,16 @@
     <div class="list-label">LIVE ON THE BOARD · <span id="approved-count-num">0</span></div>
     <div id="approved-list"></div>
   </div>
-  <div class="list-section" id="section-more"><div class="more-k">SETTINGS &amp; NIGHT</div><div style="font-family:var(--font-body);font-size:14px;color:rgba(240,237,232,0.5);margin:0 0 12px">Requests go straight on the board and the top track plays automatically. Change how often below.</div><div id="more-host"></div></div>
+  <div class="list-section" id="section-top">
+    <div class="list-label">MOST REQUESTED · ALL TIME (TRACKS PLAYED FROM REQUESTS)</div>
+    <div id="top-list"><div class="empty-state">Loading…</div></div>
+  </div>
+  <div class="list-section" id="section-more"><div class="more-k">SETTINGS &amp; NIGHT</div><div style="font-family:var(--font-body);font-size:14px;color:rgba(240,237,232,0.85);margin:0 0 12px">Requests go straight on the board and the top track plays automatically. Change how often below.</div><div id="more-host"></div></div>
 </div>
 
   <div class="list-section" id="section-browse">
     <div class="list-label"><span id="browse-count">0</span> BANDS ON THE BROWSE LIST</div>
-    <div style="padding:0 24px 16px;font-family:var(--font-pixel);font-size:16px;letter-spacing:1px;color:rgba(240,237,232,0.5)">Add a band, or tap ✕ to remove one. Changes save straight away.</div>
+    <div style="padding:0 24px 16px;font-family:var(--font-pixel);font-size:16px;letter-spacing:1px;color:rgba(240,237,232,0.85)">Add a band, or tap ✕ to remove one. Changes save straight away.</div>
     <div style="padding:0 24px 16px;display:flex;gap:8px">
       <input id="browse-add-inp" type="text" placeholder="Band name…" style="flex:1;padding:12px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:16px" onkeydown="if(event.key==='Enter')browseAdd()">
       <button class="ctrl-btn winner-btn" onclick="browseAdd()">ADD</button>
@@ -701,14 +708,14 @@ window._browseDel = async (i) => {
 
 // ── TABS ──
 window._switchTab = function(tab) {
-  const groups = { playing:['playing'], add:['add'], requests:['pending','approved','played'], browse:['browse'], banned:['banned'], more:['more'] };
+  const groups = { playing:['playing'], add:['add'], requests:['pending','approved','played','top'], browse:['browse'], banned:['banned'], more:['more'] };
   const show = groups[tab] || [tab];
   ['playing','add','requests','browse','banned','more'].forEach(t => { const el = document.getElementById('tab-'+t); if (el) el.classList.toggle('active', t === tab); });
-  ['playing','add','pending','approved','played','banned','browse','more'].forEach(t => {
+  ['playing','add','pending','approved','played','top','banned','browse','more'].forEach(t => {
     const secEl = document.getElementById('section-'+t);
     if (secEl) secEl.classList.toggle('show', show.includes(t));
   });
-  if (tab === 'requests') renderPlayedHistory();
+  if (tab === 'requests') { renderPlayedHistory(); renderTopRequested(); }
   if (tab === 'playing') staffNowPlaying();
   if (tab === 'banned') { renderBanned(); renderBlockedArtists(); }
   if (tab === 'browse') loadBrowse();
@@ -1290,9 +1297,21 @@ window.giveFree = async function(n) {
     await setDoc(doc(db, C_SETTINGS, 'gifts'), { codes });
     out.innerHTML = `<div style="font-family:var(--font-pixel);font-size:18px;letter-spacing:3px;color:var(--green)">${n} FREE REQUEST${n > 1 ? 'S' : ''} · TELL THE GUEST:</div>
       <div style="font-family:var(--font-head);font-size:64px;letter-spacing:10px;color:var(--white);line-height:1.1">${code}</div>
-      <div style="font-family:var(--font-body);font-size:13px;color:rgba(240,237,232,0.5)">One use · until 6am</div>`;
+      <div style="font-family:var(--font-body);font-size:13px;color:rgba(240,237,232,0.85)">One use · until 6am</div>`;
   } catch(e) { out.innerHTML = '<div style="color:#ff6666;font-family:var(--font-pixel);font-size:18px">COULDN’T MAKE A CODE · TRY AGAIN</div>'; }
 };
+
+// ── MOST REQUESTED (br_alltime: counted by the board each time a request plays) ──
+async function renderTopRequested() {
+  const el = document.getElementById('top-list'); if (!el) return;
+  try {
+    const snap = await getDocs(collection(db, C_ALLTIME));
+    const rows = snap.docs.map(d => d.data()).filter(r => r.title).sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 25);
+    const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    el.innerHTML = rows.length ? rows.map((r, i) => `<div class="up-row"><b>${i + 1}</b>${r.thumb ? `<img src="${esc(r.thumb)}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover">` : ''}<span>${esc(r.title)} <small>· ${esc(r.artist)}</small></span><b style="width:auto;color:var(--hub-gold)">${r.plays || 0}×</b></div>`).join('')
+      : '<div class="empty-state">Nothing yet</div>';
+  } catch(e) { el.innerHTML = '<div class="empty-state">Couldn’t load the list</div>'; }
+}
 </script>
 </body>
 </html>
