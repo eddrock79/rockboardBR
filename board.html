@@ -848,6 +848,9 @@ let totalQueueMs = MIN_AUTOQUEUE_MINS * 60 * 1000;
 onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
   if (!snap.exists()) return;
   const data = snap.data();
+  // Always on at the Black Rose: every request is approved and the top track queues automatically
+  data.autoQueue = true; data.autoApprove = true;
+  if (!data.nextQueueAt) updateDoc(doc(db,C_SETTINGS,'venue'), { autoQueue:true, autoApprove:true, nextQueueAt: Date.now() + 5000 }).catch(()=>{});
 
   // T-shirt badge
   if (typeof data.tshirtMode !== 'undefined') {
@@ -1066,7 +1069,7 @@ function startBoardQueueChecker() {
         const snap = await getDoc(doc(db,C_SETTINGS,'venue'));
         if (!snap.exists()) return;
         const data = snap.data();
-        if (!data.autoQueue) return; // auto-queue was turned off
+        // auto-queue is always on now (no off switch)
         const serverNextAt = data.nextQueueAt;
         if (serverNextAt && Date.now() >= serverNextAt) {
           // Clear local mirror immediately to prevent double-fire

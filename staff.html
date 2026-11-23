@@ -206,9 +206,9 @@
   </div>
   <div id="controls-bar" data-move="more">
     <button class="ctrl-btn tshirt-on" id="tshirt-btn" onclick="toggleTshirt()">🏆 T-SHIRT: ON</button>
-    <button class="ctrl-btn approve-btn" id="auto-approve-btn" onclick="toggleAutoApprove()">⚡ AUTO-APPROVE: OFF</button>
+    <button class="ctrl-btn approve-btn on" id="auto-approve-btn" disabled style="cursor:default">⚡ AUTO-APPROVE: ALWAYS ON</button>
     <button class="ctrl-btn queue-ctrl-btn" id="queue-top-btn" onclick="queueTopTrack()" style="display:none">🎵 QUEUE NO.1</button>
-    <button class="ctrl-btn auto-queue-btn" id="auto-queue-btn" onclick="toggleAutoQueue()" style="display:none">⏱ AUTO-QUEUE: OFF</button>
+    <button class="ctrl-btn auto-queue-btn on" id="auto-queue-btn" disabled style="display:none;cursor:default">⏱ AUTO-QUEUE: ALWAYS ON</button>
     <div id="interval-wrap" style="display:none;align-items:center;gap:6px">
       <span style="font-family:var(--font-pixel);font-size:13px;letter-spacing:2px;color:rgba(240,237,232,0.4)">EVERY</span>
       <input type="number" id="interval-input" min="5" max="60" value="5"
@@ -419,16 +419,11 @@ async function restoreAllStates() {
     const snap = await getDoc(doc(db,C_SETTINGS,'venue'));
     if (!snap.exists()) return;
     const data = snap.data();
-    // Restore auto-approve
-    if (data.autoApprove === true) {
-      applyAutoApproveUI(true);
-      showStaffToast('⚡ AUTO-APPROVE RESTORED');
-    }
-    // Restore auto-queue
-    if (data.autoQueue === true && CONFIG.spotify_worker_url) {
-      applyAutoQueueState(true);
-      showStaffToast('⏱ AUTO-QUEUE RESTORED — RUNNING');
-    }
+    // Auto-approve and auto-queue are always on
+    applyAutoApproveUI(true);
+    if (data.autoQueue === true && data.nextQueueAt) { autoQueueOn = true; }
+    else if (CONFIG.spotify_worker_url) applyAutoQueueState(true);
+    if (data.autoApprove !== true) updateDoc(doc(db,C_SETTINGS,'venue'), { autoApprove:true }).catch(()=>{});
     // Restore tshirt
     if (typeof data.tshirtMode !== 'undefined') {
       tshirtOn = data.tshirtMode;
@@ -542,14 +537,15 @@ window._toggleTshirt = function() {
 let autoApprove = false;
 
 function applyAutoApproveUI(on) {
-  autoApprove = on;
+  autoApprove = true;   // always on
   const btn = document.getElementById('auto-approve-btn');
   if (!btn) return;
-  btn.textContent = on ? '⚡ AUTO-APPROVE: ON' : '⚡ AUTO-APPROVE: OFF';
-  btn.classList.toggle('on', on);
+  btn.textContent = '⚡ AUTO-APPROVE: ALWAYS ON';
+  btn.classList.add('on');
 }
 
-window._toggleAutoApprove = function() {
+window._toggleAutoApprove = function() {};
+window._oldToggleAutoApprove = function() {
   const newState = !autoApprove;
   applyAutoApproveUI(newState);
   if (newState) approveAll();
@@ -811,7 +807,7 @@ function applyAutoQueueState(on) {
   autoQueueOn = on;
   const btn = document.getElementById('auto-queue-btn');
   if (!btn) return;
-  btn.textContent = on ? '⏱ AUTO-QUEUE: ON' : '⏱ AUTO-QUEUE: OFF';
+  btn.textContent = '⏱ AUTO-QUEUE: ALWAYS ON';
   btn.classList.toggle('on', on);
   // Staff page only controls settings — board does the actual queuing
   if (on) {
@@ -827,7 +823,8 @@ function applyAutoQueueState(on) {
     updateDoc(doc(db,C_SETTINGS,'venue'), { autoQueue:false, nextQueueAt:null }).catch(()=>{});
   }
 }
-window._toggleAutoQueue = function() {
+window._toggleAutoQueue = function() {};
+window._oldToggleAutoQueue = function() {
   const newState = !autoQueueOn;
   applyAutoQueueState(newState);
   showStaffToast(newState ? '⏱ AUTO-QUEUE ON' : '⏱ AUTO-QUEUE OFF');
