@@ -298,7 +298,9 @@
       <button class="ctrl-btn np-ghost" onclick="giveFree(2)">2 FREE</button>
       <button class="ctrl-btn np-ghost" onclick="giveFree(3)">3 FREE</button>
     </div>
-    <div id="gift-out" style="text-align:center;margin:10px 0 30px"></div>
+    <div id="gift-out" style="text-align:center;margin:10px 0 18px"></div>
+    <div class="list-label" style="padding:0 0 8px">FREE REQUESTS GIVEN · WHO GAVE THEM</div>
+    <div id="gift-log" style="margin-bottom:30px"></div>
     <div class="list-label" style="padding:0 0 10px">STAFF NAMES · TAP YOUR NAME, SONGS YOU ADD SHOW IT ON THE BOARD</div>
     <div id="sn-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
     <div style="display:flex;gap:8px;margin-bottom:30px"><input id="sn-inp" type="text" placeholder="Add a name" style="flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:#fff;font-size:16px;font-family:Outfit,sans-serif" onkeydown="if(event.key==='Enter')staffNameAdd()"><button class="ctrl-btn approve-btn on" onclick="staffNameAdd()">＋ ADD</button></div>
@@ -727,7 +729,7 @@ window._switchTab = function(tab) {
   if (tab === 'requests') { renderPlayedHistory(); renderTopRequested(); }
   if (tab === 'playing') staffNowPlaying();
   if (tab === 'banned') { renderBanned(); renderBlockedArtists(); renderAllowLong(); }
-  if (tab === 'add') { renderFavs(); renderStaffNames(); }
+  if (tab === 'add') { renderFavs(); renderStaffNames(); renderGiftLog(); }
   if (tab === 'browse') loadBrowse();
 };
 
@@ -1298,6 +1300,7 @@ async function giftHash(code) {
 
 function next6am() { const d = new Date(); if (d.getHours() >= 6) d.setDate(d.getDate() + 1); d.setHours(6, 0, 0, 0); return d.getTime(); }
 window.giveFree = async function(n) {
+  const who = await askStaffName(); if (!who) return;
   const out = document.getElementById('gift-out');
   const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let code = '';
   const r = crypto.getRandomValues(new Uint32Array(5)); for (const x of r) code += A[x % A.length];
@@ -1305,11 +1308,17 @@ window.giveFree = async function(n) {
     const snap = await getDoc(doc(db, C_SETTINGS, 'gifts'));
     const now = Date.now(), codes = {};
     Object.entries((snap.exists() && snap.data().codes) || {}).forEach(([k, v]) => { if (v && v.exp > now) codes[k] = v; });
-    codes[await giftHash(code)] = { n, exp: next6am(), used: false, at: now };
+    const h = await giftHash(code);
+    codes[h] = { n, exp: next6am(), used: false, at: now, by: who };
     await setDoc(doc(db, C_SETTINGS, 'gifts'), { codes });
+    // keep a record of who gave what (last 300)
+    const lg = await getDoc(doc(db, C_SETTINGS, 'giftlog'));
+    const entries = ((lg.exists() && lg.data().entries) || []).concat([{ at: now, by: who, n, h }]).slice(-300);
+    await setDoc(doc(db, C_SETTINGS, 'giftlog'), { entries });
+    renderGiftLog();
     out.innerHTML = `<div style="font-family:var(--font-pixel);font-size:18px;letter-spacing:3px;color:var(--green)">${n} FREE REQUEST${n > 1 ? 'S' : ''} · TELL THE GUEST:</div>
       <div style="font-family:var(--font-head);font-size:64px;letter-spacing:10px;color:var(--white);line-height:1.1">${code}</div>
-      <div style="font-family:var(--font-body);font-size:13px;color:rgba(240,237,232,0.85)">One use · until 6am</div>`;
+      <div style="font-family:var(--font-body);font-size:13px;color:rgba(240,237,232,0.85)">One use · until 6am · given by ${escL(who)}</div>`;
   } catch(e) { out.innerHTML = '<div style="color:#ff6666;font-family:var(--font-pixel);font-size:18px">COULDN’T MAKE A CODE · TRY AGAIN</div>'; }
 };
 
@@ -1396,6 +1405,23 @@ function askStaffName() {
     o.querySelector('#sn-new').onkeydown = e => { if (e.key === 'Enter') done(o.querySelector('#sn-new').value.trim()); };
     o.querySelector('#sn-cancel').onclick = () => done('');
   });
+}
+
+// ── WHO GAVE FREE REQUESTS (br_settings/giftlog; used ✓ from br_settings/gifts until 6am) ──
+async function renderGiftLog() {
+  const el = document.getElementById('gift-log'); if (!el) return;
+  try {
+    const [lg, gs] = await Promise.all([getDoc(doc(db, C_SETTINGS, 'giftlog')), getDoc(doc(db, C_SETTINGS, 'gifts'))]);
+    const entries = ((lg.exists() && lg.data().entries) || []).slice(-30).reverse();
+    const codes = (gs.exists() && gs.data().codes) || {};
+    const D = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const when = t => { const d = new Date(t); return D[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+    const total = {}; entries.forEach(e => { total[e.by] = (total[e.by] || 0) + (e.n || 0); });
+    el.innerHTML = entries.length
+      ? `<div style="font-family:Outfit,sans-serif;font-size:14px;color:#c9c9d1;margin-bottom:6px">Last ${entries.length}: ${Object.entries(total).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<b style="color:#fff">${escL(k)}</b> ${v}`).join(' · ')}</div>`
+        + entries.map(e => { const c = codes[e.h]; const st = c ? (c.used ? '<span style="color:#7ee08a">used ✓</span>' : 'not used yet') : ''; return `<div class="up-row"><span>${escL(e.by)} gave <b style="color:var(--hub-gold);width:auto">${e.n}</b> free <small>· ${when(e.at)}</small></span><small>${st}</small></div>`; }).join('')
+      : '<div class="empty-state">None given yet</div>';
+  } catch(e) { el.innerHTML = '<div class="empty-state">Couldn’t load the list</div>'; }
 }
 </script>
 </body>
