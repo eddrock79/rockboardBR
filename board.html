@@ -978,6 +978,8 @@ async function scheduleNextAutoQueue() {
 async function boardRunAutoQueue() {
   if (boardFiring) return; // prevent concurrent runs
   boardFiring = true;
+  // closing time: nothing new starts after 12:45am (the Black Rose closes at 1am); back on at 6am
+  if (closedNow()) { console.log('⏹ After 12:45am: not queueing'); try { await scheduleNextAutoQueue(); } catch(e) {} boardFiring = false; return; }
   try {
     const recentlyPlayed = await boardGetRecentlyPlayed();
     // Sort by uniqueVoters DESC — highest votes first, earliest added wins ties
@@ -1280,6 +1282,11 @@ let recentlyPlayedCache = {}; // title|||artist -> playedAt timestamp
 let trackNumber = 1;
 
 const MAX_TRACK_MS = 7 * 60 * 1000; // no track plays past 7 minutes (same rule as the Banshee)
+
+// ── LAST ORDERS FOR SONGS: the Black Rose closes at 1am, nothing should start after 12:45am ──
+const CUT_MIN = 45, OPEN_HOUR = 6;   // closed for requests 00:45 → 06:00, every night
+function closedNow() { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); return m >= CUT_MIN && d.getHours() < OPEN_HOUR; }
+function cutoffAt() { const d = new Date(), c = new Date(d); if (d.getHours() >= OPEN_HOUR) c.setDate(c.getDate() + 1); c.setHours(0, CUT_MIN, 0, 0); return c.getTime(); }
 
 // ── BLOCKED ARTISTS + BANNED SONGS (staff page BLOCKED tab) ──
 // artists: br_settings/blocked {artists:[...]}; songs: the shared 'banned' collection

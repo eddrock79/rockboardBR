@@ -286,6 +286,7 @@
     <div id="add-as" style="font-family:Outfit,sans-serif;font-size:15px;color:#c9c9d1;margin:0 0 14px"></div>
     <div class="list-label" style="padding:0 0 10px">⭐ STAFF FAVOURITES · ONE TAP ADDS IT TO THE BOARD</div>
     <div id="fav-list" style="margin-bottom:24px"></div>
+    <details id="add-top-box" style="margin:0 0 24px"><summary class="list-label" style="cursor:pointer;padding:0 0 10px">🔥 MOST REQUESTED · TOP 25 (TAP TO OPEN) · ONE TAP ADDS IT</summary><div id="add-top"></div></details>
     <div class="list-label" style="padding:0 0 10px">ADD A TRACK (FREE) · GOES STRAIGHT ON THE BOARD · ☆ SAVES IT AS A FAVOURITE</div>
     <div class="add-modes"><button class="ctrl-btn on" id="add-m-artist" onclick="staffAddMode('artist')">BY ARTIST</button><button class="ctrl-btn" id="add-m-song" onclick="staffAddMode('song')">BY SONG</button></div>
     <input id="add-inp" type="text" placeholder="Search for an artist…" autocomplete="off" oninput="staffAddSearch()">
@@ -729,7 +730,7 @@ window._switchTab = function(tab) {
   if (tab === 'requests') { renderPlayedHistory(); renderTopRequested(); }
   if (tab === 'playing') staffNowPlaying();
   if (tab === 'banned') { renderBanned(); renderBlockedArtists(); renderAllowLong(); }
-  if (tab === 'add') { renderFavs(); renderStaffNames(); renderGiftLog(); }
+  if (tab === 'add') { renderFavs(); renderStaffNames(); renderGiftLog(); renderTopRequested(); }
   if (tab === 'browse') loadBrowse();
 };
 
@@ -1324,15 +1325,16 @@ window.giveFree = async function(n) {
 
 // ── MOST REQUESTED (br_alltime: counted by the board each time a request plays) ──
 async function renderTopRequested() {
-  const el = document.getElementById('top-list'); if (!el) return;
+  const els = ['top-list', 'add-top'].map(id => document.getElementById(id)).filter(Boolean); if (!els.length) return;
   try {
     const fs = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     const snap = await getDocs(fs.query(collection(db, C_ALLTIME), fs.orderBy('plays', 'desc'), fs.limit(25)));
     const rows = snap.docs.map(d => d.data()).filter(r => r.title);
     const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    el.innerHTML = rows.length ? rows.map((r, i) => `<div class="up-row"><b>${i + 1}</b>${r.thumb ? `<img src="${esc(r.thumb)}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover">` : ''}<span>${esc(r.title)} <small>· ${esc(r.artist)}</small></span><b style="width:auto;color:var(--hub-gold)">${r.plays || 0}×</b></div>`).join('')
+    const html = rows.length ? rows.map((r, i) => `<div class="up-row"><b>${i + 1}</b>${r.thumb ? `<img src="${esc(r.thumb)}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover">` : ''}<span>${esc(r.title)} <small>· ${esc(r.artist)}</small></span><b style="width:auto;color:var(--hub-gold)">${r.plays || 0}×</b><button class="ctrl-btn" data-ta="${i}" style="padding:8px 14px;font-size:14px;background:transparent;border-color:var(--hub-gold);color:var(--hub-gold)">ADD</button></div>`).join('')
       : '<div class="empty-state">Nothing yet</div>';
-  } catch(e) { el.innerHTML = '<div class="empty-state">Couldn’t load the list</div>'; }
+    els.forEach(el => { el.innerHTML = html; el.querySelectorAll('[data-ta]').forEach(b => b.onclick = () => { const r = rows[+b.dataset.ta]; staffAddTrack(r.title, r.artist, b); }); });
+  } catch(e) { els.forEach(el => el.innerHTML = '<div class="empty-state">Couldn’t load the list</div>'); }
 }
 
 // ── ALWAYS ALLOW (over 7 minutes) + STAFF FAVOURITES (br_settings/allowlong, br_settings/favs) ──

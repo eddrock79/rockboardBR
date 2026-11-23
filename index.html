@@ -752,6 +752,7 @@ async function refreshEntitlement() {
 }
 
 function openTopUpModal(forTitle) {
+  if (tooLate()) { paintClosed(); showPurchaseToast('Requests are closed for tonight: nothing can be added after 12:45am. Voting is still on!'); return; }
   const list = document.getElementById('topup-tiers');
   list.innerHTML = CONFIG.topUpTiers.map(t => `
     <button class="topup-tier" onclick="buyTier('${t.id}')">
@@ -820,6 +821,22 @@ function showPurchaseToast(msg) {
 })();
 
 const MAX_TRACK_MS = 7 * 60 * 1000; // no tracks over 7 minutes (same as the Banshee)
+
+// ── LAST ORDERS FOR SONGS: the Black Rose closes at 1am, nothing should start after 12:45am ──
+const CUT_MIN = 45, OPEN_HOUR = 6;   // closed for requests 00:45 → 06:00, every night
+function closedNow() { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); return m >= CUT_MIN && d.getHours() < OPEN_HOUR; }
+function cutoffAt() { const d = new Date(), c = new Date(d); if (d.getHours() >= OPEN_HOUR) c.setDate(c.getDate() + 1); c.setHours(0, CUT_MIN, 0, 0); return c.getTime(); }
+window.RB_Q = { waiting: 0, mins: 5, next: 0 };
+// when would a request made now play? after every approved song already waiting, one per queue interval
+function estPlayAt() { const q = window.RB_Q, first = Math.max(Date.now(), q.next || Date.now()); return first + q.waiting * q.mins * 60000; }
+function tooLate() { return closedNow() || estPlayAt() > cutoffAt(); }
+function paintClosed() {
+  const late = tooLate(), el = document.getElementById('price-strip'), sb = document.getElementById('submit-btn');
+  if (el) { if (late) el.innerHTML = '<div class="ps-k" style="font-size:15px"><b style="color:#fff">Requests are closed for tonight.</b> Songs can’t be added after 12:45am (we close at 1am). Voting is still on, and requests open again tomorrow.</div>'; else if (el.dataset.closed) paintPrices(); el.dataset.closed = late ? '1' : ''; }
+  if (sb) { sb.disabled = late; if (late) sb.textContent = 'Requests closed for tonight'; else updateBadge(); }
+}
+setInterval(paintClosed, 30000);
+window.paintClosed = paintClosed;
 
 // ── NO SONGS OVER 7 MINUTES: look up each listed song's length and take long ones off the list ──
 const DUR = (() => { try { return JSON.parse(localStorage.getItem('rb_dur') || '{}'); } catch(e) { return {}; } })();
@@ -976,7 +993,7 @@ function updateBadge() {
   rlEl.className = 'vl-num' + (rl === 0 ? ' empty' : rl <= 2 ? ' warn' : '');
   const show = false;   // guests can always browse and pick; paying happens when they send (2026-11-23)
   document.querySelectorAll('#top-bar .get-more-btn').forEach(b => b.classList.toggle('hot', rl <= 0));
-  const sb = document.getElementById('submit-btn'); if (sb) sb.textContent = rl > 0 ? 'Request this track 🤘' : 'Request this track · from £1 🤘';
+  const sb = document.getElementById('submit-btn'); if (sb && !sb.disabled) sb.textContent = rl > 0 ? 'Request this track 🤘' : 'Request this track · from £1 🤘';
   document.getElementById('request-form').style.display = show ? 'none' : '';
   document.getElementById('rate-limit-screen').classList.toggle('on', show);
   const paidOnly = requestLimit() <= 0;   // never bought any: explain, no countdown
@@ -1283,6 +1300,7 @@ window.submitRequest = async function() {
   }
   const name = document.getElementById('inp-name').value.trim() || 'Anonymous';
 
+  if (tooLate()) { paintClosed(); showMsg('SORRY · REQUESTS ARE CLOSED FOR TONIGHT', 'err'); return; }
   if (!canRequest()) { savePick(title, artist); openTopUpModal(title); return; }
   await loadBlocks(true);
   if (trackBlocked(title, artist)) { showMsg('SORRY · NOT ON THE ROCKBOARD HERE', 'err'); return; }
@@ -1352,6 +1370,7 @@ window.voteFor = async function(id) {
 const lq = query(collection(db,C_TRACKS), orderBy('uniqueVoters','desc'));
 onSnapshot(lq, snap => {
   const tracks = snap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.approved);
+  window.RB_Q.waiting = tracks.filter(t => !t.spotifyQueued).length; paintClosed();
   const el = document.getElementById('vote-list');
   if (!tracks.length) { el.innerHTML='<div id="empty-board">NO TRACKS ON THE BOARD YET<br>BE THE FIRST TO REQUEST ONE<br>🎸</div>'; return; }
   el.innerHTML = tracks.map((t,i) => {
@@ -1389,6 +1408,7 @@ let reqCountdownTimer = null;
 onSnapshot(doc(db,C_SETTINGS,'venue'), (snap) => {
   if (!snap.exists()) return;
   const data = snap.data();
+  window.RB_Q.mins = Math.max(5, data.autoQueueMins || 5); window.RB_Q.next = data.nextQueueAt || 0; paintClosed();
   const strip = document.getElementById('vote-countdown-strip');
   if (data.autoQueue && data.nextQueueAt) {
     strip.style.display = 'flex';
