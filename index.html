@@ -458,6 +458,7 @@
     </div>
 
     <button id="submit-btn" onclick="submitRequest()">Request this track 🤘</button>
+    <div style="font-size:11px;color:var(--grey);margin:8px 0 0;text-align:center;letter-spacing:0.3px">Tracks up to 7 minutes</div>
     <div id="form-msg"></div>
 
     <div id="gods-notice">
@@ -470,10 +471,10 @@
 
   <div id="rate-limit-screen">
     <div class="rl-icon">🤘</div>
-    <div class="rl-title">YOU'VE MADE YOUR MARK</div>
-    <div class="rl-text">You've used all your requests for this hour.</div>
+    <div class="rl-title" id="rl-title">YOU'VE MADE YOUR MARK</div>
+    <div class="rl-text" id="rl-text1">You've used all your requests for this hour.</div>
     <div id="countdown">-</div>
-        <div class="rl-text">Check back when the clock resets, or get more now.</div>
+        <div class="rl-text" id="rl-text2">Check back when the clock resets, or get more now.</div>
     <button class="get-more-btn" style="display:block;margin:22px auto 0;font-size:15px;padding:15px 24px;background:#6c2bd9;color:#fff;border:none" onclick="openTopUpModal()">GET MORE REQUESTS &amp; VOTES</button>
   </div>
 
@@ -516,7 +517,7 @@ import { getFirestore, collection, onSnapshot, query, orderBy, doc, addDoc, upda
 // ── CONFIG ──
 const CONFIG = {
   venueName:          "THE BLACK ROSE",
-  maxRequestsPerHour: 1,
+  maxRequestsPerHour: 0, // no free requests (Edd, 2026-11-23): requests are bought, voting stays free
   // Free votes are worth 1 point each. Once someone's used their free
   // vote(s), any further vote they cast draws from a purchased "double
   // vote" pool instead — worth 2 points. See voteFor() below for exactly
@@ -798,6 +799,7 @@ function showPurchaseToast(msg) {
   showPurchaseToast("You're topped up 🤘");
 })();
 
+const MAX_TRACK_MS = 7 * 60 * 1000; // no tracks over 7 minutes (same as the Banshee)
 // ── RATE LIMITING ──
 function getBucket(key) {
   try { const d = JSON.parse(localStorage.getItem(key)||'null') || {count:0,windowStart:Date.now(),used:{}}; return Date.now()-d.windowStart>3600000 ? {count:0,windowStart:Date.now(),used:{}} : d; }
@@ -827,7 +829,16 @@ function updateBadge() {
   const show = rl <= 0;
   document.getElementById('request-form').style.display = show ? 'none' : '';
   document.getElementById('rate-limit-screen').classList.toggle('on', show);
-  if (show) startCountdown(getBucket('rb_req').windowStart);
+  const paidOnly = requestLimit() <= 0;   // never bought any: explain, no countdown
+  const t1 = (CONFIG.topUpTiers || [])[0];
+  document.getElementById('rl-title').textContent = paidOnly ? 'REQUEST YOUR TRACK' : "YOU'VE MADE YOUR MARK";
+  document.getElementById('rl-text1').textContent = paidOnly
+    ? 'Requests are ' + (t1 ? 'from ' + t1.priceLabel + ' for ' + t1.extraRequests + ', plus ' + t1.extraVotes + ' double votes' : 'paid') + '. Voting on the board is free.'
+    : "You've used all your requests for this hour.";
+  document.getElementById('rl-text2').textContent = paidOnly ? 'Tracks up to 7 minutes.' : 'Check back when the clock resets, or get more now.';
+  document.getElementById('countdown').style.display = paidOnly ? 'none' : '';
+  const gmb = document.querySelector('#rate-limit-screen .get-more-btn'); if (gmb) gmb.textContent = paidOnly ? 'GET REQUESTS & VOTES' : 'GET MORE REQUESTS & VOTES';
+  if (show && !paidOnly) startCountdown(getBucket('rb_req').windowStart);
 }
 function startCountdown(ws) {
   const el = document.getElementById('countdown');
@@ -1115,6 +1126,14 @@ window.submitRequest = async function() {
   const name = document.getElementById('inp-name').value.trim() || 'Anonymous';
 
   if (!canRequest()) { updateBadge(); return; }
+  // Track info first: tracks over 7 minutes can't be requested (and don't use up a request)
+  let artData = null;
+  try {
+    const infoRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&api_key=${CONFIG.lastfm_key}&format=json`);
+    artData = await infoRes.json();
+  } catch(e) {}
+  const durMs = parseInt(artData?.track?.duration || '0', 10) || 0;
+  if (durMs > MAX_TRACK_MS) { showMsg('SORRY · NO TRACKS OVER 7 MIN', 'err'); return; }
   useRequest();
   try {
     // Fetch album art from Last.fm before saving
@@ -1122,7 +1141,7 @@ window.submitRequest = async function() {
 
     let spotifyImage = '';
     try {
-      const artRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&api_key=${CONFIG.lastfm_key}&format=json`);
+      const artRes = artData ? { json: async () => artData } : await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&api_key=${CONFIG.lastfm_key}&format=json`);
       const artData = await artRes.json();
       const img = artData.track?.album?.image?.find(i=>i.size==='large')?.['#text'] || '';
       if (img && !img.includes('noimage')) spotifyImage = img;

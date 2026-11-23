@@ -71,6 +71,30 @@
   .tab .badge{display:inline-block;background:var(--accent);color:var(--white);border-radius:10px;font-size:13px;padding:2px 8px;margin-left:6px;vertical-align:middle}
 
   .list-section{padding:16px 24px;display:none}
+  /* Banshee-style staff controls (2026-11-23) */
+  .np-card{display:flex;gap:16px;align-items:center;background:var(--card);border:1px solid rgba(139,0,0,0.35);border-radius:12px;padding:14px}
+  .np-card img{width:96px;height:96px;border-radius:8px;object-fit:cover;background:#1a0a0a;flex:none}
+  .np-k{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:var(--green)}
+  #np-title{font-family:var(--font-head);font-size:30px;letter-spacing:1px;line-height:1.05;color:var(--white)}
+  #np-artist{font-family:var(--font-body);font-size:15px;color:rgba(240,237,232,0.6);margin-top:2px}
+  .np-bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.1);margin-top:10px;overflow:hidden}.np-bar i{display:block;height:100%;width:0;background:var(--green)}
+  #np-time{font-family:var(--font-pixel);font-size:16px;letter-spacing:2px;color:rgba(240,237,232,0.45);margin-top:4px}
+  .np-btns{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:14px 0 6px}
+  .np-btns .ctrl-btn{padding:18px 10px;font-size:22px}
+  .np-skip{background:var(--accent);border-color:#c00;color:#fff}
+  .np-ghost{background:transparent;border-color:rgba(240,237,232,0.3);color:var(--white)}
+  #np-msg,#add-msg{font-family:var(--font-pixel);font-size:17px;letter-spacing:2px;min-height:24px;color:var(--green)}
+  .up-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(139,0,0,0.15);font-family:var(--font-body)}
+  .up-row b{font-family:var(--font-pixel);font-size:20px;color:var(--amber);width:28px}.up-row span{flex:1}.up-row small{color:rgba(240,237,232,0.45)}
+  .add-modes{display:flex;gap:8px;margin-bottom:12px}.add-modes .ctrl-btn{flex:1;background:transparent;border-color:rgba(240,237,232,0.25);color:rgba(240,237,232,0.6)}
+  .add-modes .ctrl-btn.on{background:var(--accent);border-color:#c00;color:#fff}
+  #add-inp{width:100%;padding:14px;border-radius:6px;border:1px solid rgba(139,0,0,0.4);background:#140a0a;color:var(--white);font-size:17px}
+  .add-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(139,0,0,0.15);font-family:var(--font-body)}
+  .add-row span{flex:1}.add-row small{display:block;color:rgba(240,237,232,0.45)}
+  .add-row .ctrl-btn{padding:10px 16px;font-size:17px;background:transparent;border-color:var(--green);color:var(--green)}
+  #section-more #controls-bar{border:0;background:none;padding:0}
+  .more-k{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.4);margin:18px 0 8px}
+  @media(max-width:700px){.tab{padding:14px 4px;font-size:15px;letter-spacing:1px}#np-title{font-size:24px}.np-card img{width:72px;height:72px}}
   .list-section.show{display:block}
   .list-label{font-family:var(--font-pixel);font-size:16px;letter-spacing:3px;color:rgba(240,237,232,0.4);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
   .list-label span{color:var(--amber)}
@@ -180,7 +204,7 @@
       <button class="ctrl-btn lock-btn" onclick="lock()">LOCK</button>
     </div>
   </div>
-  <div id="controls-bar">
+  <div id="controls-bar" data-move="more">
     <button class="ctrl-btn tshirt-on" id="tshirt-btn" onclick="toggleTshirt()">🏆 T-SHIRT: ON</button>
     <button class="ctrl-btn approve-btn" id="auto-approve-btn" onclick="toggleAutoApprove()">⚡ AUTO-APPROVE: OFF</button>
     <button class="ctrl-btn queue-ctrl-btn" id="queue-top-btn" onclick="queueTopTrack()" style="display:none">🎵 QUEUE NO.1</button>
@@ -203,11 +227,32 @@
     <button class="ctrl-btn clear-btn" onclick="clearNight()">↺ NEW NIGHT</button>
   </div>
   <div id="tabs">
-    <div class="tab active" id="tab-pending" onclick="switchTab('pending')">PENDING <span class="badge" id="pending-badge" style="display:none">0</span></div>
-    <div class="tab" id="tab-approved" onclick="switchTab('approved')">APPROVED</div>
-    <div class="tab" id="tab-played" onclick="switchTab('played')">PLAYED</div>
-    <div class="tab" id="tab-browse" onclick="switchTab('browse')">📖 BROWSE</div>
-    <div class="tab" id="tab-banned" onclick="switchTab('banned')" style="color:rgba(255,80,80,0.6)">🚫 BANNED <span id="banned-count-num" style="color:rgba(255,80,80,0.8)">0</span></div>
+    <div class="tab active" id="tab-playing" onclick="switchTab('playing')">▶ PLAYING</div>
+    <div class="tab" id="tab-add" onclick="switchTab('add')">＋ ADD</div>
+    <div class="tab" id="tab-requests" onclick="switchTab('requests')">REQUESTS <span class="badge" id="pending-badge" style="display:none">0</span></div>
+    <div class="tab" id="tab-browse" onclick="switchTab('browse')">BROWSE</div>
+    <div class="tab" id="tab-banned" onclick="switchTab('banned')" style="color:rgba(255,80,80,0.6)">BLOCKED <span id="banned-count-num" style="color:rgba(255,80,80,0.8)">0</span></div>
+    <div class="tab" id="tab-more" onclick="switchTab('more')">MORE</div>
+  </div>
+  <div class="list-section show" id="section-playing">
+    <div class="np-card"><img id="np-art" alt=""><div style="flex:1;min-width:0">
+      <div class="np-k" id="np-k">NOW PLAYING</div><div id="np-title">—</div><div id="np-artist"></div>
+      <div class="np-bar"><i id="np-prog"></i></div><div id="np-time"></div></div></div>
+    <div class="np-btns">
+      <button class="ctrl-btn np-skip" onclick="staffPlayer('skip')">⏭ SKIP</button>
+      <button class="ctrl-btn np-ghost" onclick="staffPlayer('pause')">⏸ PAUSE</button>
+      <button class="ctrl-btn np-ghost" onclick="staffPlayer('play')">▶ PLAY</button>
+    </div>
+    <div id="np-msg"></div>
+    <div class="list-label" style="padding:12px 0 4px">UP NEXT ON THE BOARD · MOST VOTES FIRST</div>
+    <div id="np-next"></div>
+  </div>
+  <div class="list-section" id="section-add">
+    <div class="list-label" style="padding:0 0 10px">ADD A TRACK (FREE) · GOES STRAIGHT ON THE BOARD</div>
+    <div class="add-modes"><button class="ctrl-btn on" id="add-m-artist" onclick="staffAddMode('artist')">BY ARTIST</button><button class="ctrl-btn" id="add-m-song" onclick="staffAddMode('song')">BY SONG</button></div>
+    <input id="add-inp" type="text" placeholder="Search for an artist…" autocomplete="off" oninput="staffAddSearch()">
+    <div id="add-msg"></div>
+    <div id="add-list"></div>
   </div>
   <div class="list-section show" id="section-pending">
     <div class="list-label" style="display:flex;justify-content:space-between;align-items:center">
@@ -220,6 +265,7 @@
     <div class="list-label">LIVE ON THE BOARD · <span id="approved-count-num">0</span></div>
     <div id="approved-list"></div>
   </div>
+  <div class="list-section" id="section-more"><div class="more-k">SETTINGS &amp; NIGHT</div><div id="more-host"></div></div>
 </div>
 
   <div class="list-section" id="section-browse">
@@ -289,7 +335,7 @@ function markPlayed(id)      { window._markPlayed        && window._markPlayed(i
 
 <script type="module">
 import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, getDocs, setDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const CONFIG = {
   venueName:          "THE BLACK ROSE",
@@ -364,6 +410,7 @@ async function showApp() {
   // Restore all toggle states from Firebase
   restoreAllStates();
   startListening();
+  window._switchTab('playing');
 }
 
 async function restoreAllStates() {
@@ -400,10 +447,20 @@ function updatePinDots() {
   for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled', i < pinEntry.length);
 }
 
-function checkPin() {
-  if (pinEntry === CONFIG.staffPin) {
+async function checkPin() {
+  // The worker checks the PIN (STAFF_PIN secret in Cloudflare). Until that's set up, the old PIN in this page still works.
+  let ok = null;
+  try {
+    const r = await fetch(CONFIG.spotify_worker_url + '/staff/check', { method: 'POST', headers: { 'X-Staff-Pin': pinEntry } });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401) ok = false; else if (j.ok) ok = true;
+  } catch(e) {}
+  if (ok === null) ok = pinEntry === CONFIG.staffPin;
+  if (ok) {
+    try { sessionStorage.setItem('rb_staff_pin', pinEntry); } catch(e) {}
     if (document.getElementById('remember-me').checked) {
       localStorage.setItem(SESSION_KEY, 'yes');
+      try { localStorage.setItem('rb_staff_pin', pinEntry); } catch(e) {}
     }
     showApp();
   } else {
@@ -416,6 +473,7 @@ function checkPin() {
 window._lock = () => {
   isAuthed = false;
   localStorage.removeItem(SESSION_KEY);
+  try { localStorage.removeItem('rb_staff_pin'); sessionStorage.removeItem('rb_staff_pin'); } catch(e) {}
   pinEntry = ''; updatePinDots();
   document.getElementById('pin-screen').style.display = '';
   document.getElementById('staff-app').classList.remove('show');
@@ -433,6 +491,7 @@ function startListening() {
     allTracks = snapshot.docs.map(d => ({ id:d.id, ...d.data() }));
     renderPending();
     renderApproved();
+    renderUpNext();
   });
 }
 
@@ -601,13 +660,15 @@ window._browseDel = async (i) => {
 
 // ── TABS ──
 window._switchTab = function(tab) {
-  ['pending','approved','played','banned','browse'].forEach(t => {
-    const tabEl = document.getElementById('tab-'+t);
+  const groups = { playing:['playing'], add:['add'], requests:['pending','approved','played'], browse:['browse'], banned:['banned'], more:['more'] };
+  const show = groups[tab] || [tab];
+  ['playing','add','requests','browse','banned','more'].forEach(t => { const el = document.getElementById('tab-'+t); if (el) el.classList.toggle('active', t === tab); });
+  ['playing','add','pending','approved','played','banned','browse','more'].forEach(t => {
     const secEl = document.getElementById('section-'+t);
-    if (tabEl) tabEl.classList.toggle('active', tab===t);
-    if (secEl) secEl.classList.toggle('show', tab===t);
+    if (secEl) secEl.classList.toggle('show', show.includes(t));
   });
-  if (tab === 'played') renderPlayedHistory();
+  if (tab === 'requests') renderPlayedHistory();
+  if (tab === 'playing') staffNowPlaying();
   if (tab === 'banned') renderBanned();
   if (tab === 'browse') loadBrowse();
 };
@@ -1025,6 +1086,121 @@ function renderApproved() {
 
 // ── INIT ──
 checkPersistedLogin();
+
+// ── NOW PLAYING + SKIP / PAUSE / PLAY (Banshee-style, 2026-11-23) ──
+const MAX_TRACK_MS = 7 * 60 * 1000;
+function staffPin() {
+  let p = '';
+  try { p = sessionStorage.getItem('rb_staff_pin') || localStorage.getItem('rb_staff_pin') || ''; } catch(e) {}
+  if (!p) { p = (prompt('Staff PIN for the music controls') || '').trim(); try { if (p) sessionStorage.setItem('rb_staff_pin', p); } catch(e) {} }
+  return p;
+}
+const fmt = ms => { const s = Math.max(0, Math.round((ms || 0) / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+let npTimer = null;
+window.staffNowPlaying = async function() {
+  clearTimeout(npTimer);
+  if (!isAuthed) return;
+  const d = await spotifyCall('/nowplaying');
+  if (d && !d.error) {
+    document.getElementById('np-k').textContent = d.playing ? 'NOW PLAYING' : 'PAUSED / NOTHING PLAYING';
+    document.getElementById('np-title').textContent = d.name || '—';
+    document.getElementById('np-artist').textContent = d.artist || '';
+    const art = document.getElementById('np-art'); if (d.image) art.src = d.image;
+    const pct = d.duration ? Math.min(100, (d.progress || 0) / d.duration * 100) : 0;
+    document.getElementById('np-prog').style.width = pct + '%';
+    document.getElementById('np-time').textContent = d.duration
+      ? fmt(d.progress) + ' / ' + fmt(d.duration) + (d.duration > MAX_TRACK_MS ? ' · STOPS AT 7:00' : '') : '';
+  }
+  if (document.getElementById('section-playing').classList.contains('show')) npTimer = setTimeout(staffNowPlaying, 5000);
+};
+window.staffPlayer = async function(what) {
+  const msg = document.getElementById('np-msg');
+  const pin = staffPin(); if (!pin) return;
+  msg.style.color = 'var(--amber)'; msg.textContent = '…';
+  let r = null;
+  try {
+    const res = await fetch(CONFIG.spotify_worker_url + '/staff/' + what, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Staff-Pin': pin } });
+    r = await res.json().catch(() => ({})); r.status = r.status || res.status;
+  } catch(e) { r = { error: e.message }; }
+  if (r && r.ok) { msg.style.color = 'var(--green)'; msg.textContent = { skip: '⏭ SKIPPED', pause: '⏸ PAUSED', play: '▶ PLAYING' }[what]; setTimeout(staffNowPlaying, 800); }
+  else if (r && r.status === 401) { msg.style.color = '#ff6666'; msg.textContent = 'PIN NOT ACCEPTED BY THE MUSIC SERVER'; try { sessionStorage.removeItem('rb_staff_pin'); localStorage.removeItem('rb_staff_pin'); } catch(e) {} }
+  else if (r && /Unknown endpoint/i.test(r.error || '')) { msg.style.color = '#ff6666'; msg.textContent = 'MUSIC SERVER NEEDS THE STAFF CONTROLS UPDATE (CLOUDFLARE)'; }
+  else { msg.style.color = '#ff6666'; msg.textContent = 'SPOTIFY DIDN’T RESPOND · IS SPOTIFY OPEN ON THE BAR PC?'; }
+  setTimeout(() => { msg.textContent = ''; }, 6000);
+};
+function renderUpNext() {
+  const el = document.getElementById('np-next'); if (!el) return;
+  const up = allTracks.filter(t => t.approved && !t.spotifyQueued).sort((a, b) => (b.uniqueVoters || 0) - (a.uniqueVoters || 0)).slice(0, 5);
+  const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  el.innerHTML = up.length ? up.map((t, i) => `<div class="up-row"><b>${i + 1}</b><span>${esc(t.title)} <small>· ${esc(t.artist)}</small></span><small>${t.uniqueVoters || 0} 🤘</small></div>`).join('')
+    : '<div class="up-row"><span><small>Nothing approved yet. Requests waiting for a yes are under REQUESTS.</small></span></div>';
+}
+window.renderUpNext = renderUpNext;
+
+// ── STAFF ADD A TRACK (free, straight onto the board) ──
+let addMode = 'artist', addTimer = null, addArtist = '';
+const LFM = (typeof VENUE_CONFIG !== 'undefined' && VENUE_CONFIG.lastfm_key) || '';
+const lfm = async q => (await fetch('https://ws.audioscrobbler.com/2.0/?' + q + '&api_key=' + LFM + '&format=json')).json();
+const escA = x => String(x || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+window.staffAddMode = function(m) {
+  addMode = m; addArtist = '';
+  document.getElementById('add-m-artist').classList.toggle('on', m === 'artist');
+  document.getElementById('add-m-song').classList.toggle('on', m === 'song');
+  const inp = document.getElementById('add-inp'); inp.value = ''; inp.placeholder = m === 'artist' ? 'Search for an artist…' : 'Search for a song…'; inp.focus();
+  document.getElementById('add-list').innerHTML = ''; document.getElementById('add-msg').textContent = '';
+};
+function addRows(rows) {
+  document.getElementById('add-list').innerHTML = rows.map((r, i) =>
+    `<div class="add-row"><span>${escA(r.main)}<small>${escA(r.sub || '')}</small></span><button class="ctrl-btn" data-i="${i}">${r.btn}</button></div>`).join('')
+    || '<div class="add-row"><span><small>No matches.</small></span></div>';
+  document.querySelectorAll('#add-list [data-i]').forEach(b => { b.onclick = () => rows[+b.dataset.i].go(b); });
+}
+window.staffAddSearch = function() {
+  clearTimeout(addTimer);
+  const v = document.getElementById('add-inp').value.trim();
+  if (v.length < 2) { document.getElementById('add-list').innerHTML = ''; return; }
+  addTimer = setTimeout(async () => {
+    try {
+      if (addMode === 'artist') {
+        const d = await lfm('method=artist.search&limit=8&artist=' + encodeURIComponent(v));
+        addRows((d.results?.artistmatches?.artist || []).map(a => ({ main: a.name, sub: '', btn: 'PICK', go: () => staffPickArtist(a.name) })));
+      } else {
+        const d = await lfm('method=track.search&limit=12&track=' + encodeURIComponent(v));
+        addRows((d.results?.trackmatches?.track || []).map(t => ({ main: t.name, sub: t.artist, btn: 'ADD', go: b => staffAddTrack(t.name, t.artist, b) })));
+      }
+    } catch(e) { document.getElementById('add-msg').textContent = 'SEARCH FAILED · TRY AGAIN'; }
+  }, 350);
+};
+async function staffPickArtist(name) {
+  addArtist = name;
+  document.getElementById('add-inp').value = name;
+  const d = await lfm('method=artist.gettoptracks&limit=25&artist=' + encodeURIComponent(name));
+  addRows((d.toptracks?.track || []).map(t => ({ main: t.name, sub: name, btn: 'ADD', go: b => staffAddTrack(t.name, name, b) })));
+}
+async function staffAddTrack(title, artist, btn) {
+  const msg = document.getElementById('add-msg');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  let info = null;
+  try { info = await lfm('method=track.getInfo&artist=' + encodeURIComponent(artist) + '&track=' + encodeURIComponent(title)); } catch(e) {}
+  const dur = parseInt(info?.track?.duration || '0', 10) || 0;
+  if (dur > MAX_TRACK_MS) { msg.style.color = '#ff6666'; msg.textContent = 'OVER 7 MINUTES · NOT ADDED'; if (btn) { btn.disabled = false; btn.textContent = 'ADD'; } return; }
+  const img = (info?.track?.album?.image || []).find(i => i.size === 'large')?.['#text'] || '';
+  try {
+    await addDoc(collection(db, C_TRACKS), {
+      title, artist, requester: 'Staff pick', votes: 1, uniqueVoters: 1, voters: [],
+      approved: true, genreMismatch: false, staffAdded: true, createdAt: Date.now(),
+      spotifyImage: img && !img.includes('noimage') ? img : '',
+    });
+    msg.style.color = 'var(--green)'; msg.textContent = '✓ ' + title.toUpperCase() + ' IS ON THE BOARD';
+    if (btn) btn.textContent = 'ADDED';
+  } catch(e) { msg.style.color = '#ff6666'; msg.textContent = 'COULDN’T ADD · TRY AGAIN'; if (btn) { btn.disabled = false; btn.textContent = 'ADD'; } }
+}
+
+// the old controls bar lives under MORE now
+(function() {
+  const bar = document.querySelector('[data-move="more"]'), host = document.getElementById('more-host');
+  if (bar && host) host.appendChild(bar);
+})();
 </script>
 </body>
 </html>

@@ -984,21 +984,28 @@ async function boardRunAutoQueue() {
 
     if (!approved.length) { await scheduleNextAutoQueue(); boardFiring = false; return; }
 
-    // Pick top track not played in last hour
-    const top = approved.find(t =>
+    // Pick top track not played in last hour, skipping anything over 7 minutes
+    const candidates = approved.filter(t =>
       !recentlyPlayed.includes((t.title+'|||'+t.artist).toLowerCase())
     );
-    if (!top) { await scheduleNextAutoQueue(); boardFiring = false; return; }
-
-    // Search Spotify with fallbacks
-    const ct = cleanT(top.title);
-    const ca = top.artist.replace(/\s*feat\.?.*/i,'').trim() || top.artist;
-    let found = null;
-    for (const [t,a] of [[ct,ca],[top.title,ca],[ct,top.artist],[top.title,top.artist],[ct,''],[top.title,'']]) {
-      found = await boardSpotifyCall('/search?track='+encodeURIComponent(t)+(a?'&artist='+encodeURIComponent(a):''));
-      if (found?.uri) break;
+    let top = null, found = null;
+    for (const cand of candidates) {
+      const ct = cleanT(cand.title);
+      const ca = cand.artist.replace(/\s*feat\.?.*/i,'').trim() || cand.artist;
+      let f = null;
+      for (const [t,a] of [[ct,ca],[cand.title,ca],[ct,cand.artist],[cand.title,cand.artist],[ct,''],[cand.title,'']]) {
+        f = await boardSpotifyCall('/search?track='+encodeURIComponent(t)+(a?'&artist='+encodeURIComponent(a):''));
+        if (f?.uri) break;
+      }
+      if (!f?.uri) break;   // Spotify not answering: try again next round (as before)
+      if (f.duration && f.duration > MAX_TRACK_MS) {
+        console.log(`⏭ Over 7 min, not queued: ${cand.title}`);
+        try { await deleteDoc(doc(db,C_TRACKS,cand.id)); } catch(e) {}
+        continue;
+      }
+      top = cand; found = f; break;
     }
-    if (!found?.uri) { await scheduleNextAutoQueue(); boardFiring = false; return; }
+    if (!top || !found?.uri) { await scheduleNextAutoQueue(); boardFiring = false; return; }
 
     // Queue it
     const result = await boardSpotifyCall('/queue', 'POST', { uri:found.uri });
@@ -1263,11 +1270,17 @@ let nowPlayingTrack = '';
 let recentlyPlayedCache = {}; // title|||artist -> playedAt timestamp
 let trackNumber = 1;
 
+const MAX_TRACK_MS = 7 * 60 * 1000; // no track plays past 7 minutes (same rule as the Banshee)
+let cutUri = '';
 async function fetchNowPlaying() {
   if (!CONFIG.spotify_worker_url) return;
   try {
     const res  = await fetch(CONFIG.spotify_worker_url + '/nowplaying');
     const data = await res.json();
+    if (data.playing && data.uri && data.progress > MAX_TRACK_MS && cutUri !== data.uri) {
+      cutUri = data.uri;   // once per track
+      boardSpotifyCall('/skip', 'POST', {}).then(r => console.log('⏭ 7 min reached, next track', r)).catch(()=>{});
+    }
     const isNow  = !!data.playing;
     const title  = data.name  || '';
     const artist = data.artist || '';
